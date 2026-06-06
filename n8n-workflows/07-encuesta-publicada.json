@@ -1,0 +1,93 @@
+{
+  "name": "SGC - Encuesta Publicada",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sgc-encuesta-publicada",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook Encuesta Publicada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "sgc-encuesta-publicada"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || {};\nconst grupo = body.grupo || 'todos';\nconst rolMap = {\n  'estudiantes': 'estudiante',\n  'docentes': 'docente',\n  'egresados': 'egresado',\n  'administrativos': 'admin',\n  'todos': null\n};\nconst rol = rolMap[grupo];\nreturn [{ json: { ...body, filtroRol: rol } }];"
+      },
+      "name": "Determinar Grupo Objetivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios?activo=true{{ $json.filtroRol ? '&rol=' + $json.filtroRol : '' }}&limit=500",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "name": "Obtener Destinatarios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Limitar a máximo 200 emails por ejecución para evitar spam\nconst usuarios = $input.item.json.data || [];\nconst limitados = usuarios.slice(0, 200);\nreturn limitados.map(u => ({ json: u }));"
+      },
+      "name": "Limitar Destinatarios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Por cada Usuario",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=📝 Nueva encuesta disponible — {{ $('Webhook Encuesta Publicada').item.json.body.titulo }} — SGC-UNT",
+        "emailType": "html",
+        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;margin:0}.header{background:#003366;color:white;padding:20px 24px}.body{background:white;padding:24px}.encuesta-card{border:2px solid #003366;border-radius:8px;padding:20px;margin:16px 0;background:#f8f9fa}.info-row{display:flex;gap:8px;margin:6px 0;font-size:13px}.info-label{color:#666;min-width:120px}.info-value{color:#333;font-weight:500}.footer{background:#f8f8f8;border-top:2px solid #003366;padding:12px 24px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:12px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;margin-top:16px;font-size:15px}</style></head><body><div class=\"header\"><h2>📝 Nueva Encuesta Disponible</h2><p style=\"margin:4px 0 0;opacity:.8\">Sistema de Gestión de la Calidad — SGC-UNT v2.0</p></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }} {{ $json.apellido }}</strong>,</p><p>La Universidad Nacional de Trujillo le invita a participar en la siguiente encuesta institucional:</p><div class=\"encuesta-card\"><h3 style=\"color:#003366;margin:0 0 12px\">{{ $('Webhook Encuesta Publicada').item.json.body.titulo }}</h3><div class=\"info-row\"><span class=\"info-label\">Grupo objetivo:</span><span class=\"info-value\">{{ $('Webhook Encuesta Publicada').item.json.body.grupo }}</span></div></div><p>Su opinión es muy importante para mejorar la calidad de nuestros servicios educativos.</p><p style=\"color:#666;font-size:13px\">{{ $('Webhook Encuesta Publicada').item.json.body.grupo === 'todos' || $('Webhook Encuesta Publicada').item.json.body.anonima ? '🔒 Esta encuesta es completamente anónima.' : '' }}</p><div style=\"text-align:center\"><a href=\"{{ $env.FRONTEND_URL }}/encuestas\" class=\"btn\">Responder Encuesta</a></div></div><div class=\"footer\">SGC-UNT v2.0 · Notificación automática · Universidad Nacional de Trujillo<br>Si no desea recibir estas notificaciones, contacte a la Dirección de Calidad.</div></body></html>",
+        "options": {}
+      },
+      "name": "Enviar Invitacion",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"mensaje\": \"Notificaciones enviadas al grupo objetivo\" }",
+        "options": {}
+      },
+      "name": "Respuesta OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Encuesta Publicada": { "main": [[{ "node": "Determinar Grupo Objetivo", "type": "main", "index": 0 }]] },
+    "Determinar Grupo Objetivo": { "main": [[{ "node": "Obtener Destinatarios", "type": "main", "index": 0 }]] },
+    "Obtener Destinatarios": { "main": [[{ "node": "Limitar Destinatarios", "type": "main", "index": 0 }]] },
+    "Limitar Destinatarios": { "main": [[{ "node": "Por cada Usuario", "type": "main", "index": 0 }]] },
+    "Por cada Usuario": { "main": [[{ "node": "Enviar Invitacion", "type": "main", "index": 0 }]] },
+    "Enviar Invitacion": { "main": [[{ "node": "Respuesta OK", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1"
+}
