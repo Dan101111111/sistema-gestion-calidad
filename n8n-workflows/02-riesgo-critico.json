@@ -2,11 +2,19 @@
   "name": "SGC - Alerta Riesgo Critico",
   "nodes": [
     {
-      "parameters": { "path": "sgc-riesgo-critico", "responseMode": "onReceived", "options": {} },
+      "parameters": {
+        "path": "sgc-riesgo-critico",
+        "responseMode": "onReceived",
+        "options": {},
+        "httpMethod": "POST"
+      },
       "name": "Webhook Riesgo Critico",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "sgc-riesgo-critico"
     },
     {
@@ -14,29 +22,48 @@
         "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios?rol=admin&activo=true",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "splitIntoItems": true,
+          "itemProperty": "data"
+        }
       },
       "name": "Obtener Admins",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 220]
+      "position": [
+        460,
+        220
+      ]
     },
     {
       "parameters": {
         "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios?rol=gestor_calidad&activo=true",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "splitIntoItems": true,
+          "itemProperty": "data"
+        }
       },
       "name": "Obtener Gestores",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 380]
+      "position": [
+        460,
+        380
+      ]
     },
     {
       "parameters": {
         "mode": "combine",
-        "mergeByFields": { "values": [{ "field1": "id", "field2": "id" }] },
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "id",
+              "field2": "id"
+            }
+          ]
+        },
         "joinMode": "keepNonMatches",
         "outputDataFrom": "both",
         "options": {}
@@ -44,7 +71,10 @@
       "name": "Combinar Destinatarios",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -52,13 +82,16 @@
         "toEmail": "={{ $json.email }}",
         "subject": "=⚠️ ALERTA: Riesgo Crítico Detectado — SGC-UNT",
         "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#C8102E;color:white;padding:20px}.body{background:white;padding:30px}.danger{background:#fde8e8;border-left:4px solid #C8102E;padding:12px;margin:12px 0}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#C8102E;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>🚨 Riesgo Crítico Detectado</h2><p>Sistema de Gestión de la Calidad — SGC-UNT v2.0</p></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><div class=\"danger\"><strong>⚠️ Se ha detectado un riesgo en nivel CRÍTICO que requiere atención inmediata.</strong></div><p><strong>Código:</strong> {{ $('Webhook Riesgo Critico').item.json.body.codigo }}</p><p><strong>Nombre:</strong> {{ $('Webhook Riesgo Critico').item.json.body.nombre }}</p><p><strong>Nivel de Riesgo:</strong> {{ $('Webhook Riesgo Critico').item.json.body.nivel }} / 25</p><p><strong>Probabilidad:</strong> {{ $('Webhook Riesgo Critico').item.json.body.probabilidad }} / 5</p><p><strong>Impacto:</strong> {{ $('Webhook Riesgo Critico').item.json.body.impacto }} / 5</p><p>Por favor, tome las acciones necesarias para mitigar este riesgo.</p><br><a href=\"{{ $env.FRONTEND_URL }}/riesgos\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta automática · Universidad Nacional de Trujillo</div></body></html>",
-        "options": {}
+        "options": {},
+        "html": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#C8102E;color:white;padding:20px}.body{background:white;padding:30px}.danger{background:#fde8e8;border-left:4px solid #C8102E;padding:12px;margin:12px 0}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#C8102E;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>🚨 Riesgo Crítico Detectado</h2><p>Sistema de Gestión de la Calidad — SGC-UNT v2.0</p></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><div class=\"danger\"><strong>⚠️ Se ha detectado un riesgo en nivel CRÍTICO que requiere atención inmediata.</strong></div><p><strong>Código:</strong> {{ $('Webhook Riesgo Critico').first().json.body.codigo }}</p><p><strong>Nombre:</strong> {{ $('Webhook Riesgo Critico').first().json.body.nombre }}</p><p><strong>Nivel de Riesgo:</strong> {{ $('Webhook Riesgo Critico').first().json.body.nivel }} / 25</p><p><strong>Probabilidad:</strong> {{ $('Webhook Riesgo Critico').first().json.body.probabilidad }} / 5</p><p><strong>Impacto:</strong> {{ $('Webhook Riesgo Critico').first().json.body.impacto }} / 5</p><p>Por favor, tome las acciones necesarias para mitigar este riesgo.</p><br><a href=\"{{ $env.FRONTEND_URL }}/riesgos\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta automática · Universidad Nacional de Trujillo</div></body></html>"
       },
       "name": "Enviar Alerta Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -69,22 +102,123 @@
       "name": "Respuesta OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => (item.json.data || []).map(x => ({ json: x })));"
+      },
+      "name": "Desempaquetar Admins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        570,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => (item.json.data || []).map(x => ({ json: x })));"
+      },
+      "name": "Desempaquetar Gestores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        570,
+        380
+      ]
     }
   ],
   "connections": {
     "Webhook Riesgo Critico": {
-      "main": [[
-        { "node": "Obtener Admins", "type": "main", "index": 0 },
-        { "node": "Obtener Gestores", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Obtener Admins",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Obtener Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Obtener Admins": { "main": [[{ "node": "Combinar Destinatarios", "type": "main", "index": 0 }]] },
-    "Obtener Gestores": { "main": [[{ "node": "Combinar Destinatarios", "type": "main", "index": 1 }]] },
-    "Combinar Destinatarios": { "main": [[{ "node": "Enviar Alerta Email", "type": "main", "index": 0 }]] },
-    "Enviar Alerta Email": { "main": [[{ "node": "Respuesta OK", "type": "main", "index": 0 }]] }
+    "Obtener Admins": {
+      "main": [
+        [
+          {
+            "node": "Desempaquetar Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Gestores": {
+      "main": [
+        [
+          {
+            "node": "Desempaquetar Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Destinatarios": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Alerta Email": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desempaquetar Admins": {
+      "main": [
+        [
+          {
+            "node": "Combinar Destinatarios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desempaquetar Gestores": {
+      "main": [
+        [
+          {
+            "node": "Combinar Destinatarios",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "1"
 }

@@ -106,11 +106,17 @@ export const procesosApi = {
   listarMacroprocesos: () => api.get('/macroprocesos'),
   crearMacroproceso: (data: object) => api.post('/macroprocesos', data),
   actualizarMacroproceso: (id: string, data: object) => api.put(`/macroprocesos/${id}`, data),
+  eliminarMacroproceso: (id: string) => api.delete(`/macroprocesos/${id}`),
   listar: (params?: object) => api.get('/procesos', { params }),
   obtener: (id: string) => api.get(`/procesos/${id}`),
   crear: (data: object) => api.post('/procesos', data),
   actualizar: (id: string, data: object) => api.put(`/procesos/${id}`, data),
+  eliminarProceso: (id: string) => api.delete(`/procesos/${id}`),
   crearActividad: (procesoId: string, data: object) => api.post(`/procesos/${procesoId}/actividades`, data),
+  actualizarActividad: (id: string, data: object) => api.put(`/actividades/${id}`, data),
+  eliminarActividad: (id: string) => api.delete(`/actividades/${id}`),
+  reordenarActividades: (procesoId: string, ordenadosIds: string[]) => api.post(`/procesos/${procesoId}/actividades/reordenar`, { ordenadosIds }),
+  guardarFlujo: (procesoId: string, data: object) => api.post(`/procesos/${procesoId}/flujo`, data),
   reporte: () => api.get('/procesos/reporte/pdf', { responseType: 'blob' }),
 };
 
@@ -129,9 +135,11 @@ export const auditoriasApi = {
   listarPlanes: (params?: object) => api.get('/planes-auditoria', { params }),
   crearPlan: (data: object) => api.post('/planes-auditoria', data),
   actualizarPlan: (id: string, data: object) => api.put(`/planes-auditoria/${id}`, data),
+  eliminarPlan: (id: string) => api.delete(`/planes-auditoria/${id}`),
   listarHallazgos: (params?: object) => api.get('/hallazgos', { params }),
   crearHallazgo: (data: object) => api.post('/hallazgos', data),
   actualizarHallazgo: (id: string, data: object) => api.put(`/hallazgos/${id}`, data),
+  eliminarHallazgo: (id: string) => api.delete(`/hallazgos/${id}`),
   reporte: (id: string) => api.get(`/planes-auditoria/${id}/reporte/pdf`, { responseType: 'blob' }),
 };
 
@@ -140,6 +148,7 @@ export const capasApi = {
   obtener: (id: string) => api.get(`/capas/${id}`),
   crear: (data: object) => api.post('/capas', data),
   actualizar: (id: string, data: object) => api.put(`/capas/${id}`, data),
+  eliminar: (id: string) => api.delete(`/capas/${id}`),
   cambiarEstado: (id: string, data: object) => api.patch(`/capas/${id}/estado`, data),
   agregarSeguimiento: (id: string, data: object) => api.post(`/capas/${id}/seguimientos`, data),
   reporte: (params?: object) => api.get('/capas/reporte/pdf', { params, responseType: 'blob' }),
@@ -198,6 +207,12 @@ export const adminApi = {
   usuarios: { listar: (p?: object) => api.get('/usuarios', { params: p }), crear: (d: object) => api.post('/usuarios', d), actualizar: (id: string, d: object) => api.put(`/usuarios/${id}`, d), toggleActivo: (id: string) => api.patch(`/usuarios/${id}/toggle-activo`), asignarRol: (id: string, rol: string) => api.patch(`/usuarios/${id}/rol`, { rol }), resetPassword: (id: string, password: string) => api.post(`/usuarios/${id}/reset-password`, { password }) },
   auditoria: { log: (p?: object) => api.get('/auditoria', { params: p }), historial: (tabla: string, id: string) => api.get(`/auditoria/${tabla}/${id}`) },
   configuracion: { obtener: () => api.get('/configuracion'), actualizar: (d: object) => api.put('/configuracion', d) },
+  tiposDocumento: {
+    listar: (params?: object) => api.get('/tipos-documento', { params }),
+    crear: (data: object) => api.post('/tipos-documento', data),
+    actualizar: (id: string, data: object) => api.put(`/tipos-documento/${id}`, data),
+    eliminar: (id: string) => api.delete(`/tipos-documento/${id}`),
+  },
 };
 
 export default api;

@@ -114,8 +114,9 @@ exports.login = async (req, res, next) => {
         accessToken,
         expiresIn: 900,
         user: {
-          id: user.id, nombre: user.nombre, apellido: user.apellido,
+          id: user.id, codigo: user.codigo, nombre: user.nombre, apellido: user.apellido,
           email: user.email, rol: user.rol, facultad: user.facultad, escuela: user.escuela,
+          telefono: user.telefono,
         },
       },
     });

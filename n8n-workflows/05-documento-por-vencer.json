@@ -2,23 +2,41 @@
   "name": "SGC - Documento Por Vencer (30 dias)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 6 * * 1" }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
       "name": "Cron Lunes 6am",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
         "url": "={{ $env.SGC_API_URL }}/api/v1/documentos?estado=aprobado&limit=200",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "splitIntoItems": true,
+          "itemProperty": "data"
+        }
       },
       "name": "Obtener Docs Aprobados",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -27,18 +45,33 @@
       "name": "Filtrar y Agrupar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "conditions": [{ "leftValue": "={{ $json.responsable }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
+          "conditions": [
+            {
+              "leftValue": "={{ $json.responsable }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
         }
       },
       "name": "Tiene Responsable?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -46,22 +79,68 @@
         "toEmail": "={{ $json.responsable.email }}",
         "subject": "=📋 Documentos próximos a vencer (30 días) — SGC-UNT",
         "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#003366;color:white;padding:20px}.body{background:white;padding:30px}table{width:100%;border-collapse:collapse}th{background:#003366;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #eee}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>📋 Documentos Por Vencer</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.responsable.nombre }} {{ $json.responsable.apellido }}</strong>,</p><p>Los siguientes documentos bajo su responsabilidad vencerán en los próximos <strong>30 días</strong>:</p><table><tr><th>Código</th><th>Título</th><th>Tipo</th><th>Vencimiento</th></tr>{{ $json.docs.map(d => '<tr><td>'+d.codigo+'</td><td>'+d.titulo+'</td><td>'+(d.tipo ? d.tipo.nombre : '-')+'</td><td>'+d.fecha_vigencia_fin+'</td></tr>').join('') }}</table><p>Por favor, revise y renueve o archive estos documentos según corresponda.</p><br><a href=\"{{ $env.FRONTEND_URL }}/documentos\" class=\"btn\">Gestionar Documentos</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta semanal · Universidad Nacional de Trujillo</div></body></html>",
-        "options": {}
+        "options": {},
+        "html": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#003366;color:white;padding:20px}.body{background:white;padding:30px}table{width:100%;border-collapse:collapse}th{background:#003366;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #eee}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>📋 Documentos Por Vencer</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.responsable.nombre }} {{ $json.responsable.apellido }}</strong>,</p><p>Los siguientes documentos bajo su responsabilidad vencerán en los próximos <strong>30 días</strong>:</p><table><tr><th>Código</th><th>Título</th><th>Tipo</th><th>Vencimiento</th></tr>{{ $json.docs.map(d => '<tr><td>'+d.codigo+'</td><td>'+d.titulo+'</td><td>'+(d.tipo ? d.tipo.nombre : '-')+'</td><td>'+d.fecha_vigencia_fin+'</td></tr>').join('') }}</table><p>Por favor, revise y renueve o archive estos documentos según corresponda.</p><br><a href=\"{{ $env.FRONTEND_URL }}/documentos\" class=\"btn\">Gestionar Documentos</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta semanal · Universidad Nacional de Trujillo</div></body></html>"
       },
       "name": "Email Alerta Docs",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 200]
+      "position": [
+        1120,
+        200
+      ]
     }
   ],
   "connections": {
-    "Cron Lunes 6am": { "main": [[{ "node": "Obtener Docs Aprobados", "type": "main", "index": 0 }]] },
-    "Obtener Docs Aprobados": { "main": [[{ "node": "Filtrar y Agrupar", "type": "main", "index": 0 }]] },
-    "Filtrar y Agrupar": { "main": [[{ "node": "Tiene Responsable?", "type": "main", "index": 0 }]] },
-    "Tiene Responsable?": { "main": [[{ "node": "Email Alerta Docs", "type": "main", "index": 0 }], []] }
+    "Cron Lunes 6am": {
+      "main": [
+        [
+          {
+            "node": "Obtener Docs Aprobados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Docs Aprobados": {
+      "main": [
+        [
+          {
+            "node": "Filtrar y Agrupar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar y Agrupar": {
+      "main": [
+        [
+          {
+            "node": "Tiene Responsable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Responsable?": {
+      "main": [
+        [
+          {
+            "node": "Email Alerta Docs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "1"
 }

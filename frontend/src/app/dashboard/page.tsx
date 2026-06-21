@@ -10,13 +10,16 @@ import {
 } from 'recharts';
 import {
   FileText, Shield, AlertTriangle, MessageSquare, BarChart2,
-  ClipboardCheck, TrendingUp, TrendingDown, Minus,
+  ClipboardCheck, TrendingUp, TrendingDown, Minus, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const COLORS = ['#003366', '#C8102E', '#F7B731', '#27AE60', '#8B5CF6', '#06B6D4'];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--warning))', 'hsl(var(--success))', 'hsl(var(--accent))', 'hsl(var(--secondary))'];
 const NIVEL_COLORS: Record<string, string> = {
-  bajo: '#27AE60', medio: '#F7B731', alto: '#FF6B00', critico: '#C8102E',
+  bajo: 'hsl(var(--success))',
+  medio: 'hsl(var(--warning))',
+  alto: 'hsl(var(--destructive-light))',
+  critico: 'hsl(var(--destructive))',
 };
 
 export default function DashboardPage() {
@@ -30,6 +33,8 @@ export default function DashboardPage() {
     queryKey: ['dashboard-graficos'],
     queryFn: () => dashboardApi.graficos().then(r => r.data.data),
   });
+
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const kpiCards = [
     { key: 'documentos_activos', label: 'Documentos Activos', icon: <FileText className="w-5 h-5" />, color: 'blue' },
@@ -54,13 +59,28 @@ export default function DashboardPage() {
     <AppLayout title="Dashboard">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Panel de Control</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Resumen ejecutivo del Sistema de Gestión de la Calidad</p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-foreground tracking-tight">Panel de Control</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Resumen ejecutivo del Sistema de Gestión de la Calidad</p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">{new Date().toLocaleDateString('es-PE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
+          <div className="flex items-center gap-4">
+            {/* Search bar */}
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-64"
+              />
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                {new Date().toLocaleDateString('es-PE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -81,26 +101,28 @@ export default function DashboardPage() {
         {/* Charts row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Tendencia indicadores */}
-          <Card>
+          <Card className="hover:shadow-glow-sm transition-all duration-300">
             <CardHeader>
-              <CardTitle>Tendencia de Indicadores — Cumplimiento Promedio</CardTitle>
+              <CardTitle className="tracking-tight">Tendencia de Indicadores — Cumplimiento Promedio</CardTitle>
             </CardHeader>
             <CardContent>
-              {grafLoading ? <div className="skeleton h-56 rounded" /> : indicTendencia.length === 0 ? (
+              {grafLoading ? (
+                <div className="skeleton h-56 rounded animate-pulse" />
+              ) : indicTendencia.length === 0 ? (
                 <EmptyState message="Sin mediciones registradas" />
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={indicTendencia} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="periodo" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} domain={[0, 100]} unit="%" axisLine={false} tickLine={false} />
                     <Tooltip
                       formatter={(v: number) => [`${v}%`, 'Cumplimiento']}
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e0e0e0' }}
+                      contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
                     />
-                    <Bar dataKey="cumplimiento" fill="#003366" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="cumplimiento" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
                       {indicTendencia.map((d: any, i: number) => (
-                        <Cell key={i} fill={d.cumplimiento >= 80 ? '#27AE60' : d.cumplimiento >= 60 ? '#F7B731' : '#C8102E'} />
+                        <Cell key={i} fill={d.cumplimiento >= 80 ? 'hsl(var(--success))' : d.cumplimiento >= 60 ? 'hsl(var(--warning))' : 'hsl(var(--destructive))'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -110,12 +132,14 @@ export default function DashboardPage() {
           </Card>
 
           {/* CAPAs por estado */}
-          <Card>
+          <Card className="hover:shadow-glow-sm transition-all duration-300">
             <CardHeader>
-              <CardTitle>CAPAs por Estado</CardTitle>
+              <CardTitle className="tracking-tight">CAPAs por Estado</CardTitle>
             </CardHeader>
             <CardContent>
-              {grafLoading ? <div className="skeleton h-56 rounded" /> : capaData.length === 0 ? (
+              {grafLoading ? (
+                <div className="skeleton h-56 rounded animate-pulse" />
+              ) : capaData.length === 0 ? (
                 <EmptyState message="Sin CAPAs registradas" />
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
@@ -134,7 +158,7 @@ export default function DashboardPage() {
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -146,23 +170,25 @@ export default function DashboardPage() {
         {/* Charts row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Mapa de calor riesgos */}
-          <Card>
+          <Card className="hover:shadow-glow-sm transition-all duration-300">
             <CardHeader>
-              <CardTitle>Distribución de Riesgos — Probabilidad vs Impacto</CardTitle>
+              <CardTitle className="tracking-tight">Distribución de Riesgos — Probabilidad vs Impacto</CardTitle>
             </CardHeader>
             <CardContent>
-              {grafLoading ? <div className="skeleton h-48 rounded" /> : (
+              {grafLoading ? (
+                <div className="skeleton h-48 rounded animate-pulse" />
+              ) : (
                 <div className="grid grid-cols-5 gap-1 mt-2">
                   {[5, 4, 3, 2, 1].map(p => (
                     [1, 2, 3, 4, 5].map(i => {
                       const nivel = p * i;
                       const cell = graficos?.riesgosPorNivel?.find((r: any) => parseInt(r.probabilidad) === p && parseInt(r.impacto) === i);
                       const qty = cell ? parseInt(cell.cantidad) : 0;
-                      const color = nivel >= 17 ? '#C8102E' : nivel >= 10 ? '#FF6B00' : nivel >= 5 ? '#F7B731' : '#27AE60';
+                      const color = nivel >= 17 ? NIVEL_COLORS.critico : nivel >= 10 ? NIVEL_COLORS.alto : nivel >= 5 ? NIVEL_COLORS.medio : NIVEL_COLORS.bajo;
                       return (
                         <div key={`${p}-${i}`}
                           title={`P:${p} × I:${i} = ${nivel} | ${qty} riesgo(s)`}
-                          className="aspect-square rounded flex items-center justify-center text-white text-xs font-bold cursor-default transition-transform hover:scale-110"
+                          className="aspect-square rounded flex items-center justify-center text-white text-xs font-bold cursor-default transition-all duration-200 hover:scale-110 hover:-translate-y-1 hover:shadow-glow-sm"
                           style={{ background: color, opacity: qty > 0 ? 1 : 0.3 }}
                         >
                           {qty > 0 && qty}
@@ -172,8 +198,13 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500">
-                {[['#27AE60','Bajo (1-4)'], ['#F7B731','Medio (5-9)'], ['#FF6B00','Alto (10-16)'], ['#C8102E','Crítico (17-25)']].map(([c, l]) => (
+              <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
+                {[
+                  [NIVEL_COLORS.bajo, 'Bajo (1-4)'],
+                  [NIVEL_COLORS.medio, 'Medio (5-9)'],
+                  [NIVEL_COLORS.alto, 'Alto (10-16)'],
+                  [NIVEL_COLORS.critico, 'Crítico (17-25)']
+                ].map(([c, l]) => (
                   <div key={l} className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm" style={{ background: c }} />{l}</div>
                 ))}
               </div>
@@ -181,13 +212,13 @@ export default function DashboardPage() {
           </Card>
 
           {/* Alertas recientes */}
-          <Card>
+          <Card className="hover:shadow-glow-sm transition-all duration-300">
             <CardHeader>
-              <CardTitle>Estado Rápido del Sistema</CardTitle>
+              <CardTitle className="tracking-tight">Estado Rápido del Sistema</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {kpiLoading ? (
-                Array(4).fill(0).map((_, i) => <div key={i} className="skeleton h-10 rounded" />)
+                Array(4).fill(0).map((_, i) => <div key={i} className="skeleton h-10 rounded animate-pulse" />)
               ) : [
                 { label: 'Documentos Aprobados', value: kpis?.documentos_activos, total: 'activos', icon: FileText, ok: true },
                 { label: 'CAPAs Requieren Atención', value: kpis?.capas_abiertas, total: 'abiertas', icon: Shield, ok: (kpis?.capas_abiertas || 0) < 5 },
@@ -196,17 +227,17 @@ export default function DashboardPage() {
               ].map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                    <div className={cn('p-2 rounded-lg', item.ok ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>
+                  <div key={idx} className="group flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-all duration-200 hover:-translate-y-0.5">
+                    <div className={cn('p-2 rounded-lg transition-transform duration-200 group-hover:scale-110', item.ok ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive')}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</p>
+                      <p className="text-sm font-medium text-foreground">{item.label}</p>
                     </div>
-                    <span className={cn('text-sm font-bold', item.ok ? 'text-green-600' : 'text-red-600')}>
+                    <span className={cn('text-sm font-bold tracking-tight', item.ok ? 'text-success' : 'text-destructive')}>
                       {item.value ?? 0}
                     </span>
-                    {item.ok ? <TrendingUp className="w-4 h-4 text-green-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
+                    {item.ok ? <TrendingUp className="w-4 h-4 text-success transition-transform duration-200 group-hover:scale-110" /> : <TrendingDown className="w-4 h-4 text-destructive transition-transform duration-200 group-hover:scale-110" />}
                   </div>
                 );
               })}

@@ -4,48 +4,126 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base colors - Light mode */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 217 100% 20%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Navy Blue */
+    --primary: 217 91% 20%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 354 80% 42%;
+    --primary-light: 217 91% 35%;
+    --primary-dark: 217 91% 15%;
+    
+    /* Secondary - Electric Blue */
+    --secondary: 217 100% 50%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 43 93% 58%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary-light: 217 100% 65%;
+    --secondary-dark: 217 100% 40%;
+    
+    /* Accent - Cyan */
+    --accent: 187 100% 50%;
+    --accent-foreground: 222 47% 11%;
+    --accent-light: 187 100% 65%;
+    --accent-dark: 187 100% 40%;
+    
+    /* Success - Mint */
+    --success: 167 100% 42%;
+    --success-foreground: 210 40% 98%;
+    --success-light: 167 100% 57%;
+    --success-dark: 167 100% 32%;
+    
+    /* Warning - Amber */
+    --warning: 43 93% 58%;
+    --warning-foreground: 222 47% 11%;
+    --warning-light: 43 93% 73%;
+    --warning-dark: 43 93% 48%;
+    
+    /* Error - Red */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 100% 20%;
+    --destructive-light: 0 84% 75%;
+    --destructive-dark: 0 84% 50%;
+    
+    /* Neutral */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 20%;
+    
+    /* Radius */
     --radius: 0.5rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Base colors - Dark mode */
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 217 33% 17%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    
+    /* Primary - Navy Blue (lighter for dark mode) */
+    --primary: 217 91% 45%;
+    --primary-foreground: 222 47% 11%;
+    --primary-light: 217 91% 55%;
+    --primary-dark: 217 91% 35%;
+    
+    /* Secondary - Electric Blue (lighter for dark mode) */
+    --secondary: 217 100% 60%;
+    --secondary-foreground: 222 47% 11%;
+    --secondary-light: 217 100% 70%;
+    --secondary-dark: 217 100% 50%;
+    
+    /* Accent - Cyan (lighter for dark mode) */
+    --accent: 187 100% 60%;
+    --accent-foreground: 222 47% 11%;
+    --accent-light: 187 100% 70%;
+    --accent-dark: 187 100% 50%;
+    
+    /* Success - Mint (lighter for dark mode) */
+    --success: 167 100% 52%;
+    --success-foreground: 222 47% 11%;
+    --success-light: 167 100% 62%;
+    --success-dark: 167 100% 42%;
+    
+    /* Warning - Amber (lighter for dark mode) */
+    --warning: 43 93% 68%;
+    --warning-foreground: 222 47% 11%;
+    --warning-light: 43 93% 78%;
+    --warning-dark: 43 93% 58%;
+    
+    /* Error - Red (lighter for dark mode) */
+    --destructive: 0 84% 70%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-light: 0 84% 80%;
+    --destructive-dark: 0 84% 60%;
+    
+    /* Neutral */
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 217 91% 60%;
+    
+    /* Shadows (more subtle for dark mode) */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.4);
   }
 }
 

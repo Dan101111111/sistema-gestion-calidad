@@ -2,11 +2,19 @@
   "name": "SGC - Notificar Nuevo Documento",
   "nodes": [
     {
-      "parameters": { "path": "sgc-nuevo-documento", "responseMode": "onReceived", "options": {} },
+      "parameters": {
+        "path": "sgc-nuevo-documento",
+        "responseMode": "onReceived",
+        "options": {},
+        "httpMethod": "POST"
+      },
       "name": "Webhook Nuevo Documento",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "sgc-nuevo-documento"
     },
     {
@@ -19,19 +27,28 @@
       "name": "Obtener Config",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
         "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios?rol=gestor_calidad&activo=true",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "splitIntoItems": true,
+          "itemProperty": "data"
+        }
       },
       "name": "Obtener Gestores Calidad",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,7 +58,10 @@
       "name": "Por cada Gestor",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -49,13 +69,16 @@
         "toEmail": "={{ $json.email }}",
         "subject": "=📄 Nuevo Documento Registrado — SGC-UNT",
         "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;background:#f4f4f4}table{width:100%;border-collapse:collapse}.header{background:#003366;color:white;padding:20px}.body{background:white;padding:30px}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}th{background:#003366;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #eee}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>🎓 SGC-UNT — Nuevo Documento</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><p>Se ha registrado un nuevo documento en el Sistema de Gestión de la Calidad:</p><table><tr><th>Campo</th><th>Valor</th></tr><tr><td>Código</td><td><strong>{{ $('Webhook Nuevo Documento').item.json.body.codigo }}</strong></td></tr><tr><td>Título</td><td>{{ $('Webhook Nuevo Documento').item.json.body.titulo }}</td></tr><tr><td>Fecha</td><td>{{ $('Webhook Nuevo Documento').item.json.body.timestamp }}</td></tr></table><br><a href=\"{{ $env.FRONTEND_URL }}/documentos\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Universidad Nacional de Trujillo · Notificación automática</div></body></html>",
-        "options": {}
+        "options": {},
+        "html": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;background:#f4f4f4}table{width:100%;border-collapse:collapse}.header{background:#003366;color:white;padding:20px}.body{background:white;padding:30px}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}th{background:#003366;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #eee}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>🎓 SGC-UNT — Nuevo Documento</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><p>Se ha registrado un nuevo documento en el Sistema de Gestión de la Calidad:</p><table><tr><th>Campo</th><th>Valor</th></tr><tr><td>Código</td><td><strong>{{ $('Webhook Nuevo Documento').first().json.body.codigo }}</strong></td></tr><tr><td>Título</td><td>{{ $('Webhook Nuevo Documento').first().json.body.titulo }}</td></tr><tr><td>Fecha</td><td>{{ $('Webhook Nuevo Documento').first().json.body.timestamp }}</td></tr></table><br><a href=\"{{ $env.FRONTEND_URL }}/documentos\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Universidad Nacional de Trujillo · Notificación automática</div></body></html>"
       },
       "name": "Enviar Email Gestor",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -66,17 +89,95 @@
       "name": "Respuesta OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => (item.json.data || []).map(x => ({ json: x })));"
+      },
+      "name": "Desempaquetar Gestores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        790,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook Nuevo Documento": { "main": [[{ "node": "Obtener Config", "type": "main", "index": 0 }]] },
-    "Obtener Config": { "main": [[{ "node": "Obtener Gestores Calidad", "type": "main", "index": 0 }]] },
-    "Obtener Gestores Calidad": { "main": [[{ "node": "Por cada Gestor", "type": "main", "index": 0 }]] },
-    "Por cada Gestor": { "main": [[{ "node": "Enviar Email Gestor", "type": "main", "index": 0 }]] },
-    "Enviar Email Gestor": { "main": [[{ "node": "Respuesta OK", "type": "main", "index": 0 }]] }
+    "Webhook Nuevo Documento": {
+      "main": [
+        [
+          {
+            "node": "Obtener Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Config": {
+      "main": [
+        [
+          {
+            "node": "Obtener Gestores Calidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Gestores Calidad": {
+      "main": [
+        [
+          {
+            "node": "Desempaquetar Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Por cada Gestor": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email Gestor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Email Gestor": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desempaquetar Gestores": {
+      "main": [
+        [
+          {
+            "node": "Por cada Gestor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "1"
 }

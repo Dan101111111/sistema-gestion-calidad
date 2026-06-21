@@ -1,6 +1,6 @@
 'use strict';
 const { Op, literal } = require('sequelize');
-const { Documento, VersionDocumento, AprobacionDocumento, TipoDocumento, Usuario, ArchivoAdjunto } = require('../models');
+const { Documento, VersionDocumento, AprobacionDocumento, TipoDocumento, Usuario, ArchivoAdjunto, Proceso } = require('../models');
 const { createError } = require('../middleware/errorHandler');
 const pdfService = require('../services/pdfService');
 const notifService = require('../services/notificacionService');
@@ -8,10 +8,10 @@ const n8nService = require('../services/n8nService');
 
 const ESTADO_TRANSICIONES = {
   borrador: ['en_revision'],
-  en_revision: ['aprobado', 'rechazado'],
-  aprobado: ['archivado'],
-  rechazado: ['borrador'],
+  en_revision: ['aprobado', 'borrador'],
+  aprobado: ['archivado', 'obsoleto'],
   archivado: [],
+  obsoleto: [],
 };
 
 exports.listar = async (req, res, next) => {
@@ -52,6 +52,7 @@ exports.obtener = async (req, res, next) => {
     const doc = await Documento.findByPk(req.params.id, {
       include: [
         { model: TipoDocumento, as: 'tipo' },
+        { model: Proceso, as: 'proceso', attributes: ['id', 'nombre', 'codigo'] },
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido', 'email'] },
         { model: Usuario, as: 'creador', attributes: ['id', 'nombre', 'apellido'] },
         { model: VersionDocumento, as: 'versiones', order: [['numero_version', 'DESC']], limit: 10,
@@ -87,6 +88,14 @@ exports.actualizar = async (req, res, next) => {
   try {
     const doc = await Documento.findByPk(req.params.id);
     if (!doc) return next(createError(404, 'Documento no encontrado'));
+
+    const esAdminOGestor = ['admin', 'gestor_calidad'].includes(req.user.rol);
+    const esCreador = doc.creado_por === req.userId;
+
+    if (!esAdminOGestor && !esCreador) {
+      return next(createError(403, 'No tiene permisos para modificar este documento', 'FORBIDDEN'));
+    }
+
     if (!['borrador', 'rechazado'].includes(doc.estado)) {
       return next(createError(400, 'Solo se pueden editar documentos en borrador o rechazados'));
     }
@@ -119,19 +128,48 @@ exports.cambiarEstado = async (req, res, next) => {
     });
     if (!doc) return next(createError(404, 'Documento no encontrado'));
 
+    // 1. Control de accesos por rol y autoría
+    const esAdminOGestor = ['admin', 'gestor_calidad'].includes(req.user.rol);
+    const esCreador = doc.creado_por === req.userId;
+
+    if (!esAdminOGestor) {
+      if (esCreador) {
+        if (accion !== 'enviar_revision') {
+          return next(createError(403, 'El creador solo puede enviar a revisión el documento', 'FORBIDDEN'));
+        }
+        if (doc.estado !== 'borrador') {
+          return next(createError(400, 'El documento debe estar en borrador para enviarse a revisión', 'INVALID_STATE'));
+        }
+      } else {
+        return next(createError(403, 'No tiene permisos para gestionar este documento', 'FORBIDDEN'));
+      }
+    }
+
+    // 2. Validación de comentario al rechazar
+    if (accion === 'rechazar' && (!comentario || !comentario.trim())) {
+      return next(createError(422, 'El comentario es obligatorio al rechazar', 'COMMENT_REQUIRED'));
+    }
+
     const transiciones = ESTADO_TRANSICIONES[doc.estado] || [];
     const ACCION_ESTADO = {
       enviar_revision: 'en_revision',
       aprobar: 'aprobado',
-      rechazar: 'rechazado',
+      rechazar: 'borrador',
       archivar: 'archivado',
+      obsoletar: 'obsoleto',
     };
     const nuevoEstado = ACCION_ESTADO[accion];
     if (!nuevoEstado || !transiciones.includes(nuevoEstado)) {
       return next(createError(400, `Transición no permitida: ${doc.estado} → ${accion}`, 'INVALID_TRANSITION'));
     }
 
-    await doc.update({ estado: nuevoEstado, modificado_por: req.userId });
+    // 3. Registrar fecha de última revisión si cambia de en_revision a aprobado o borrador (rechazado)
+    const updateData = { estado: nuevoEstado, modificado_por: req.userId };
+    if (doc.estado === 'en_revision' && ['aprobado', 'borrador'].includes(nuevoEstado)) {
+      updateData.fecha_revision = new Date();
+    }
+
+    await doc.update(updateData);
 
     await AprobacionDocumento.create({
       documento_id: doc.id, aprobador_id: req.userId,
@@ -158,7 +196,21 @@ exports.eliminar = async (req, res, next) => {
   try {
     const doc = await Documento.findByPk(req.params.id);
     if (!doc) return next(createError(404, 'Documento no encontrado'));
-    if (doc.estado === 'aprobado') return next(createError(400, 'No se puede eliminar un documento aprobado'));
+
+    const esAdminOGestor = ['admin', 'gestor_calidad'].includes(req.user.rol);
+    const esCreador = doc.creado_por === req.userId;
+
+    if (!esAdminOGestor && !esCreador) {
+      return next(createError(403, 'No tiene permisos para eliminar este documento', 'FORBIDDEN'));
+    }
+
+    if (!esAdminOGestor && doc.estado !== 'borrador') {
+      return next(createError(400, 'Solo se pueden eliminar documentos en estado borrador', 'INVALID_STATE'));
+    }
+
+    if (esAdminOGestor && doc.estado === 'aprobado') {
+      return next(createError(400, 'No se puede eliminar un documento aprobado', 'INVALID_STATE'));
+    }
 
     req.datosAnteriores = doc.toJSON();
     await doc.destroy();

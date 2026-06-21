@@ -59,7 +59,7 @@ const documentoSchemas = {
   crear: Joi.object({
     codigo:                Joi.string().min(2).max(30).uppercase().required(),
     titulo:                Joi.string().min(3).max(300).required(),
-    tipo_id:               uuid.optional(),
+    tipo_id:               uuid.required(),
     contenido:             Joi.string().max(50000).optional().allow(''),
     proceso_id:            uuid.optional(),
     responsable_id:        uuid.optional(),
@@ -77,7 +77,7 @@ const documentoSchemas = {
     comentario_version:    Joi.string().max(500).optional().allow(''),
   }),
   cambiarEstado: Joi.object({
-    accion:     Joi.string().valid('enviar_revision','aprobar','rechazar','archivar').required(),
+    accion:     Joi.string().valid('enviar_revision','aprobar','rechazar','archivar','obsoletar').required(),
     comentario: Joi.string().max(1000).optional().allow(''),
   }),
 };
@@ -129,9 +129,9 @@ const capaSchemas = {
     fecha_verificacion:    fecha.optional(),
   }),
   cambiarEstado: Joi.object({
-    nuevo_estado: Joi.string().valid('en_implementacion','implementada','verificada','cerrada','rechazada').required(),
+    nuevo_estado: Joi.string().valid('registrada','en_implementacion','implementada','verificada','cerrada','rechazada').required(),
     comentario:   Joi.string().max(2000).optional().allow(''),
-    efectividad:  Joi.string().valid('efectiva','parcialmente_efectiva','no_efectiva').optional(),
+    efectividad:  Joi.string().valid('efectiva','parcial','parcialmente_efectiva','no_efectiva','pendiente').optional(),
   }),
   seguimiento: Joi.object({
     avance_porcentaje: Joi.number().integer().min(0).max(100).required(),
@@ -215,7 +215,7 @@ const auditoriaSchemas = {
   plan: Joi.object({
     codigo:       Joi.string().min(3).max(30).required(),
     nombre:       Joi.string().min(3).max(200).required(),
-    tipo:         Joi.string().valid('interna','externa','seguimiento','certificacion').required(),
+    tipo:         Joi.string().valid('interna','externa','especial','seguimiento','certificacion').required(),
     alcance:      Joi.string().max(3000).optional().allow(''),
     objetivo:     Joi.string().max(3000).optional().allow(''),
     fecha_inicio: fecha.required(),
@@ -227,11 +227,12 @@ const auditoriaSchemas = {
     codigo:              Joi.string().min(3).max(30).required(),
     plan_id:             uuid.optional(),
     tipo:                Joi.string().valid('no_conformidad','observacion','oportunidad_mejora','buena_practica').required(),
-    gravedad:            Joi.string().valid('critica','mayor','menor','observacion').required(),
+    gravedad:            Joi.string().valid('baja','media','alta','critica','mayor','menor','observacion').required(),
     descripcion:         Joi.string().min(10).max(5000).required(),
     proceso_id:          uuid.optional(),
     area_responsable_id: uuid.optional(),
     evidencia:           Joi.string().max(3000).optional().allow(''),
+    justificacion:       Joi.string().max(2000).optional().allow(''),
   }),
 };
 
@@ -272,6 +273,23 @@ const acreditacionSchemas = {
   }),
 };
 
+// ── Tipos de Documento ───────────────────────────────────────
+const tipoDocumentoSchemas = {
+  crear: Joi.object({
+    nombre:              Joi.string().min(2).max(100).required(),
+    codigo:              Joi.string().min(2).max(10).uppercase().required(),
+    descripcion:         Joi.string().max(1000).optional().allow(''),
+    activo:              Joi.boolean().optional(),
+    requiere_aprobacion: Joi.boolean().optional(),
+  }),
+  actualizar: Joi.object({
+    nombre:              Joi.string().min(2).max(100).optional(),
+    descripcion:         Joi.string().max(1000).optional().allow(''),
+    activo:              Joi.boolean().optional(),
+    requiere_aprobacion: Joi.boolean().optional(),
+  }),
+};
+
 // ── Middleware de validación Joi ──────────────────────────────
 function validar(schema, property = 'body') {
   return (req, res, next) => {
@@ -290,5 +308,6 @@ function validar(schema, property = 'body') {
 module.exports = {
   authSchemas, usuarioSchemas, documentoSchemas, macroprocesoSchemas,
   procesoSchemas, capaSchemas, riesgoSchemas, indicadorSchemas,
-  encuestaSchemas, auditoriaSchemas, acreditacionSchemas, validar,
+  encuestaSchemas, auditoriaSchemas, acreditacionSchemas, tipoDocumentoSchemas, validar,
 };
+

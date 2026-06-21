@@ -82,9 +82,9 @@ exports.crear = async (req, res, next) => {
       estado: 'registrada', creado_por: req.userId,
     });
 
-    // Vincular hallazgo a esta CAPA
+    // Vincular hallazgo a esta CAPA y mover a en_tratamiento
     if (hallazgo_id) {
-      await Hallazgo.update({ capa_id: capa.id, estado: 'en_proceso' }, { where: { id: hallazgo_id } });
+      await Hallazgo.update({ capa_id: capa.id, estado: 'en_tratamiento' }, { where: { id: hallazgo_id } });
     }
 
     // Notificar al responsable
@@ -122,6 +122,12 @@ exports.cambiarEstado = async (req, res, next) => {
       include: [{ model: Usuario, as: 'responsable', attributes: ['id', 'email', 'nombre'] }],
     });
     if (!capa) return next(createError(404, 'CAPA no encontrada'));
+
+    if (nuevo_estado === 'rechazada') {
+      if (!comentario || !comentario.trim()) {
+        return next(createError(400, 'El comentario es obligatorio al rechazar una CAPA'));
+      }
+    }
 
     const permitidos = TRANSICIONES[capa.estado] || [];
     if (!permitidos.includes(nuevo_estado)) {
@@ -230,5 +236,21 @@ exports.reportePDF = async (req, res, next) => {
     const pdf = await pdfService.generar({ titulo: 'Acciones Correctivas y Preventivas (CAPA)', contenido: html, modulo: 'capas' });
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="capas.pdf"' });
     res.send(pdf);
+  } catch (err) { next(err); }
+};
+
+exports.eliminar = async (req, res, next) => {
+  try {
+    const capa = await Capa.findByPk(req.params.id);
+    if (!capa) return next(createError(404, 'CAPA no encontrada'));
+
+    const seguimientosCount = await SeguimientoCapa.count({ where: { capa_id: capa.id } });
+    if (seguimientosCount > 0) {
+      return next(createError(400, 'No se puede eliminar una CAPA que tiene seguimientos registrados'));
+    }
+
+    await Hallazgo.update({ capa_id: null, estado: 'abierto' }, { where: { capa_id: capa.id } });
+    await capa.destroy();
+    res.json({ message: 'CAPA eliminada exitosamente' });
   } catch (err) { next(err); }
 };

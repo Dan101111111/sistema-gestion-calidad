@@ -5,12 +5,16 @@
       "parameters": {
         "path": "sgc-indicador-bajo-meta",
         "responseMode": "onReceived",
-        "options": {}
+        "options": {},
+        "httpMethod": "POST"
       },
       "name": "Webhook Indicador Bajo Meta",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "sgc-indicador-bajo-meta"
     },
     {
@@ -20,19 +24,28 @@
       "name": "Calcular Brecha",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
         "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios?rol=gestor_calidad&activo=true",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "splitIntoItems": true,
+          "itemProperty": "data"
+        }
       },
       "name": "Obtener Gestores",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [680, 300]
+      "position": [
+        680,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,21 +55,27 @@
       "name": "Por cada Gestor",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.email }}",
-        "subject": "=📉 Alerta: Indicador bajo meta — {{ $('Calcular Brecha').item.json.codigo }} — SGC-UNT",
+        "subject": "=📉 Alerta: Indicador bajo meta — {{ $('Calcular Brecha').first().json.codigo }} — SGC-UNT",
         "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;margin:0}.header{background:#003366;color:white;padding:20px 24px}.body{background:white;padding:24px}.kpi-box{display:inline-block;background:#f8f9fa;border:2px solid #dee2e6;border-radius:8px;padding:16px 24px;text-align:center;margin:8px}.kpi-value{font-size:32px;font-weight:bold}.kpi-label{font-size:12px;color:#666;margin-top:4px}.danger{border-color:#C8102E}.warning{border-color:#F7B731}.footer{background:#f8f8f8;border-top:2px solid #003366;padding:12px 24px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;margin-top:12px}</style></head><body><div class=\"header\"><h2>📉 Indicador por Debajo de Meta</h2><p style=\"margin:4px 0 0;opacity:.8\">Sistema de Gestión de la Calidad — SGC-UNT v2.0</p></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><p>El siguiente indicador ha registrado un cumplimiento por debajo del umbral mínimo del <strong>80%</strong>:</p><h3 style=\"color:#003366\">{{ $('Calcular Brecha').item.json.nombre }}</h3><p style=\"color:#666;font-size:13px\">Código: <strong>{{ $('Calcular Brecha').item.json.codigo }}</strong> · Período: <strong>{{ $('Calcular Brecha').item.json.periodo }}</strong></p><div style=\"display:flex;gap:12px;flex-wrap:wrap;margin:20px 0\"><div class=\"kpi-box {{ $('Calcular Brecha').item.json.nivelAlerta === 'CRITICO' ? 'danger' : 'warning' }}\"><div class=\"kpi-value\" style=\"color:{{ $('Calcular Brecha').item.json.nivelAlerta === 'CRITICO' ? '#C8102E' : '#F7B731' }}\">{{ $('Calcular Brecha').item.json.cumplimiento }}%</div><div class=\"kpi-label\">Cumplimiento Actual</div></div><div class=\"kpi-box\"><div class=\"kpi-value\" style=\"color:#003366\">{{ $('Calcular Brecha').item.json.meta }}</div><div class=\"kpi-label\">Meta Establecida</div></div><div class=\"kpi-box danger\"><div class=\"kpi-value\" style=\"color:#C8102E\">-{{ $('Calcular Brecha').item.json.brecha }}</div><div class=\"kpi-label\">Brecha</div></div></div><p><strong>Nivel de Alerta:</strong> <span style=\"color:{{ $('Calcular Brecha').item.json.nivelAlerta === 'CRITICO' ? '#C8102E' : '#F7B731' }};font-weight:bold\">{{ $('Calcular Brecha').item.json.nivelAlerta }}</span></p><p>Se recomienda revisar las causas del incumplimiento y tomar acciones correctivas si corresponde.</p><a href=\"{{ $env.FRONTEND_URL }}/indicadores\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta automática de indicadores · Universidad Nacional de Trujillo</div></body></html>",
-        "options": {}
+        "options": {},
+        "html": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;margin:0}.header{background:#003366;color:white;padding:20px 24px}.body{background:white;padding:24px}.kpi-box{display:inline-block;background:#f8f9fa;border:2px solid #dee2e6;border-radius:8px;padding:16px 24px;text-align:center;margin:8px}.kpi-value{font-size:32px;font-weight:bold}.kpi-label{font-size:12px;color:#666;margin-top:4px}.danger{border-color:#C8102E}.warning{border-color:#F7B731}.footer{background:#f8f8f8;border-top:2px solid #003366;padding:12px 24px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;margin-top:12px}</style></head><body><div class=\"header\"><h2>📉 Indicador por Debajo de Meta</h2><p style=\"margin:4px 0 0;opacity:.8\">Sistema de Gestión de la Calidad — SGC-UNT v2.0</p></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.nombre }}</strong>,</p><p>El siguiente indicador ha registrado un cumplimiento por debajo del umbral mínimo del <strong>80%</strong>:</p><h3 style=\"color:#003366\">{{ $('Calcular Brecha').first().json.nombre }}</h3><p style=\"color:#666;font-size:13px\">Código: <strong>{{ $('Calcular Brecha').first().json.codigo }}</strong> · Período: <strong>{{ $('Calcular Brecha').first().json.periodo }}</strong></p><div style=\"display:flex;gap:12px;flex-wrap:wrap;margin:20px 0\"><div class=\"kpi-box {{ $('Calcular Brecha').first().json.nivelAlerta === 'CRITICO' ? 'danger' : 'warning' }}\"><div class=\"kpi-value\" style=\"color:{{ $('Calcular Brecha').first().json.nivelAlerta === 'CRITICO' ? '#C8102E' : '#F7B731' }}\">{{ $('Calcular Brecha').first().json.cumplimiento }}%</div><div class=\"kpi-label\">Cumplimiento Actual</div></div><div class=\"kpi-box\"><div class=\"kpi-value\" style=\"color:#003366\">{{ $('Calcular Brecha').first().json.meta }}</div><div class=\"kpi-label\">Meta Establecida</div></div><div class=\"kpi-box danger\"><div class=\"kpi-value\" style=\"color:#C8102E\">-{{ $('Calcular Brecha').first().json.brecha }}</div><div class=\"kpi-label\">Brecha</div></div></div><p><strong>Nivel de Alerta:</strong> <span style=\"color:{{ $('Calcular Brecha').first().json.nivelAlerta === 'CRITICO' ? '#C8102E' : '#F7B731' }};font-weight:bold\">{{ $('Calcular Brecha').first().json.nivelAlerta }}</span></p><p>Se recomienda revisar las causas del incumplimiento y tomar acciones correctivas si corresponde.</p><a href=\"{{ $env.FRONTEND_URL }}/indicadores\" class=\"btn\">Ver en SGC-UNT</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta automática de indicadores · Universidad Nacional de Trujillo</div></body></html>"
       },
       "name": "Email Alerta Indicador",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
@@ -67,17 +86,95 @@
       "name": "Respuesta OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => (item.json.data || []).map(x => ({ json: x })));"
+      },
+      "name": "Desempaquetar Gestores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        790,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook Indicador Bajo Meta": { "main": [[{ "node": "Calcular Brecha", "type": "main", "index": 0 }]] },
-    "Calcular Brecha": { "main": [[{ "node": "Obtener Gestores", "type": "main", "index": 0 }]] },
-    "Obtener Gestores": { "main": [[{ "node": "Por cada Gestor", "type": "main", "index": 0 }]] },
-    "Por cada Gestor": { "main": [[{ "node": "Email Alerta Indicador", "type": "main", "index": 0 }]] },
-    "Email Alerta Indicador": { "main": [[{ "node": "Respuesta OK", "type": "main", "index": 0 }]] }
+    "Webhook Indicador Bajo Meta": {
+      "main": [
+        [
+          {
+            "node": "Calcular Brecha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Brecha": {
+      "main": [
+        [
+          {
+            "node": "Obtener Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Gestores": {
+      "main": [
+        [
+          {
+            "node": "Desempaquetar Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Por cada Gestor": {
+      "main": [
+        [
+          {
+            "node": "Email Alerta Indicador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Alerta Indicador": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desempaquetar Gestores": {
+      "main": [
+        [
+          {
+            "node": "Por cada Gestor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "versionId": "1"
 }

@@ -25,8 +25,15 @@ exports.listarMacroprocesos = async (req, res, next) => {
     const macros = await Macroproceso.findAll({
       where: { activo: true },
       include: [
-        { model: Proceso, as: 'procesos', where: { activo: true }, required: false,
-          attributes: ['id', 'codigo', 'nombre', 'orden'] },
+        {
+          model: Proceso,
+          as: 'procesos',
+          required: false,
+          attributes: ['id', 'codigo', 'nombre', 'orden', 'estado', 'responsable_id'],
+          include: [
+            { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido'] }
+          ]
+        },
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido'] },
       ],
       order: [['orden', 'ASC'], [{ model: Proceso, as: 'procesos' }, 'orden', 'ASC']],
@@ -37,7 +44,11 @@ exports.listarMacroprocesos = async (req, res, next) => {
 
 exports.crearMacroproceso = async (req, res, next) => {
   try {
-    const existe = await Macroproceso.findOne({ where: { codigo: req.body.codigo } });
+    const { codigo, nombre, tipo, responsable_id } = req.body;
+    if (!codigo || !nombre) {
+      return next(createError(400, 'El código y nombre del macroproceso son obligatorios.'));
+    }
+    const existe = await Macroproceso.findOne({ where: { codigo } });
     if (existe) return next(createError(409, 'El código de macroproceso ya existe'));
     const macro = await Macroproceso.create({ ...req.body, creado_por: req.userId });
     res.status(201).json({ data: macro });
@@ -48,16 +59,18 @@ exports.actualizarMacroproceso = async (req, res, next) => {
   try {
     const macro = await Macroproceso.findByPk(req.params.id);
     if (!macro) return next(createError(404, 'Macroproceso no encontrado'));
-    await macro.update({ ...req.body, modificado_por: req.userId });
+    const { codigo, ...rest } = req.body; // El código no debe modificarse
+    await macro.update({ ...rest, modificado_por: req.userId });
     res.json({ data: macro });
   } catch (err) { next(err); }
 };
 
 exports.listarProcesos = async (req, res, next) => {
   try {
-    const { macroproceso_id, q } = req.query;
-    const where = { activo: true };
+    const { macroproceso_id, q, estado } = req.query;
+    const where = {};
     if (macroproceso_id) where.macroproceso_id = macroproceso_id;
+    if (estado) where.estado = estado;
     if (q) where[Op.or] = [{ nombre: { [Op.iLike]: `%${q}%` } }, { codigo: { [Op.iLike]: `%${q}%` } }];
 
     const procesos = await Proceso.findAll({
@@ -65,9 +78,16 @@ exports.listarProcesos = async (req, res, next) => {
       include: [
         { model: Macroproceso, as: 'macroproceso', attributes: ['id', 'codigo', 'nombre', 'tipo'] },
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido'] },
-        { model: ActividadProceso, as: 'actividades', where: { activo: true }, required: false, order: [['secuencia', 'ASC']] },
+        {
+          model: ActividadProceso,
+          as: 'actividades',
+          required: false,
+          include: [
+            { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido'] }
+          ]
+        },
       ],
-      order: [['orden', 'ASC']],
+      order: [['orden', 'ASC'], [{ model: ActividadProceso, as: 'actividades' }, 'secuencia', 'ASC']],
     });
     res.json({ data: procesos });
   } catch (err) { next(err); }
@@ -79,10 +99,20 @@ exports.obtenerProceso = async (req, res, next) => {
       include: [
         { model: Macroproceso, as: 'macroproceso' },
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido', 'email'] },
-        { model: ActividadProceso, as: 'actividades', order: [['secuencia', 'ASC']] },
+        {
+          model: ActividadProceso,
+          as: 'actividades',
+          include: [
+            { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido', 'email'] }
+          ]
+        },
         { model: FlujoDeTrabajo, as: 'flujos', where: { activo: true }, required: false },
-        { model: Documento, as: 'documentos', attributes: ['id', 'codigo', 'titulo', 'estado'], limit: 5 },
+        { model: Documento, as: 'documentos', attributes: ['id', 'codigo', 'titulo', 'estado'], limit: 10 },
+        { model: Riesgo, as: 'riesgos', attributes: ['id', 'codigo', 'nombre', 'estado'], limit: 10 },
+        { model: Indicador, as: 'indicadores', attributes: ['id', 'codigo', 'nombre', 'activo'], limit: 10 },
+        { model: Hallazgo, as: 'hallazgos', attributes: ['id', 'codigo', 'descripcion', 'estado'], limit: 10 },
       ],
+      order: [[{ model: ActividadProceso, as: 'actividades' }, 'secuencia', 'ASC']],
     });
     if (!proceso) return next(createError(404, 'Proceso no encontrado'));
     res.json({ data: proceso });
@@ -91,7 +121,11 @@ exports.obtenerProceso = async (req, res, next) => {
 
 exports.crearProceso = async (req, res, next) => {
   try {
-    const existe = await Proceso.findOne({ where: { codigo: req.body.codigo } });
+    const { codigo, nombre, macroproceso_id, responsable_id } = req.body;
+    if (!codigo || !nombre || !macroproceso_id || !responsable_id) {
+      return next(createError(400, 'El código, nombre, macroproceso y responsable son obligatorios.'));
+    }
+    const existe = await Proceso.findOne({ where: { codigo } });
     if (existe) return next(createError(409, 'El código de proceso ya existe'));
     const proceso = await Proceso.create({ ...req.body, creado_por: req.userId });
     res.status(201).json({ data: proceso });
@@ -103,15 +137,38 @@ exports.actualizarProceso = async (req, res, next) => {
     const proceso = await Proceso.findByPk(req.params.id);
     if (!proceso) return next(createError(404, 'Proceso no encontrado'));
     req.datosAnteriores = proceso.toJSON();
-    await proceso.update({ ...req.body, modificado_por: req.userId });
+    const { codigo, ...rest } = req.body; // El código no debe modificarse
+    await proceso.update({ ...rest, modificado_por: req.userId });
     res.json({ data: proceso });
   } catch (err) { next(err); }
 };
 
 exports.crearActividad = async (req, res, next) => {
   try {
-    const proceso = await Proceso.findByPk(req.params.procesoId);
+    const { procesoId } = req.params;
+    const { codigo, nombre, secuencia, responsable_id } = req.body;
+
+    if (!codigo || !nombre || !responsable_id || secuencia === undefined) {
+      return next(createError(400, 'El código, nombre, secuencia y responsable son obligatorios.'));
+    }
+
+    const proceso = await Proceso.findByPk(procesoId);
     if (!proceso) return next(createError(404, 'Proceso no encontrado'));
+
+    // Validar unicidad del código
+    const existeCodigo = await ActividadProceso.findOne({ where: { codigo } });
+    if (existeCodigo) return next(createError(409, 'El código de actividad ya existe.'));
+
+    // Validar secuencia
+    if (!Number.isInteger(Number(secuencia)) || Number(secuencia) < 1) {
+      return next(createError(400, 'La secuencia debe ser un número entero positivo.'));
+    }
+
+    const existeSecuencia = await ActividadProceso.findOne({ where: { proceso_id: procesoId, secuencia } });
+    if (existeSecuencia) {
+      return next(createError(400, `La secuencia ${secuencia} ya está asignada a otra actividad en este proceso.`));
+    }
+
     const act = await ActividadProceso.create({ ...req.body, proceso_id: proceso.id });
     res.status(201).json({ data: act });
   } catch (err) { next(err); }
@@ -121,6 +178,26 @@ exports.actualizarActividad = async (req, res, next) => {
   try {
     const act = await ActividadProceso.findByPk(req.params.id);
     if (!act) return next(createError(404, 'Actividad no encontrada'));
+
+    const { codigo, secuencia } = req.body;
+
+    if (codigo !== undefined && codigo !== act.codigo) {
+      const existeCodigo = await ActividadProceso.findOne({ where: { codigo } });
+      if (existeCodigo) return next(createError(409, 'El código de actividad ya existe.'));
+    }
+
+    if (secuencia !== undefined && Number(secuencia) !== act.secuencia) {
+      if (!Number.isInteger(Number(secuencia)) || Number(secuencia) < 1) {
+        return next(createError(400, 'La secuencia debe ser un número entero positivo.'));
+      }
+      const existeSecuencia = await ActividadProceso.findOne({
+        where: { proceso_id: act.proceso_id, secuencia, id: { [Op.ne]: act.id } }
+      });
+      if (existeSecuencia) {
+        return next(createError(400, `La secuencia ${secuencia} ya está asignada a otra actividad en este proceso.`));
+      }
+    }
+
     await act.update(req.body);
     res.json({ data: act });
   } catch (err) { next(err); }
@@ -291,6 +368,18 @@ exports.listarPlanes = async (req, res, next) => {
     if (tipo) where.tipo = tipo;
 
     const { count, rows } = await PlanAuditoria.findAndCountAll({
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)::integer
+              FROM sgc.hallazgos AS h
+              WHERE h.plan_id = "PlanAuditoria"."id"
+            )`),
+            'hallazgos_count'
+          ]
+        ]
+      },
       where, include: [
         { model: Usuario, as: 'lider', attributes: ['id', 'nombre', 'apellido'] },
         { model: EquipoAuditoria, as: 'equipo', include: [{ model: Usuario, as: 'auditor', attributes: ['id', 'nombre', 'apellido'] }] },
@@ -304,7 +393,11 @@ exports.listarPlanes = async (req, res, next) => {
 
 exports.crearPlan = async (req, res, next) => {
   try {
-    const existe = await PlanAuditoria.findOne({ where: { codigo: req.body.codigo } });
+    const { codigo, fecha_inicio, fecha_fin } = req.body;
+    if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      return next(createError(400, 'La fecha de ejecución (fin) no puede ser anterior a la fecha programada (inicio)'));
+    }
+    const existe = await PlanAuditoria.findOne({ where: { codigo } });
     if (existe) return next(createError(409, 'Código de plan duplicado'));
     const plan = await PlanAuditoria.create({ ...req.body, creado_por: req.userId });
     if (req.body.miembros?.length) {
@@ -319,8 +412,55 @@ exports.actualizarPlan = async (req, res, next) => {
   try {
     const plan = await PlanAuditoria.findByPk(req.params.id);
     if (!plan) return next(createError(404, 'Plan no encontrado'));
-    await plan.update({ ...req.body });
+
+    if (req.user.rol === 'auditor') {
+      if (plan.lider_id !== req.userId && plan.creado_por !== req.userId) {
+        return next(createError(403, 'No tiene permiso para modificar planes de auditoría creados por otros'));
+      }
+    }
+
+    const { fecha_inicio, fecha_fin, estado } = req.body;
+    const fin = fecha_fin || plan.fecha_fin;
+    const inicio = fecha_inicio || plan.fecha_inicio;
+    if (fin && inicio && new Date(fin) < new Date(inicio)) {
+      return next(createError(400, 'La fecha de ejecución (fin) no puede ser anterior a la fecha programada (inicio)'));
+    }
+
+    if (estado === 'cerrado') {
+      const openFindingsCount = await Hallazgo.count({
+        where: {
+          plan_id: plan.id,
+          estado: { [Op.ne]: 'cerrado' }
+        }
+      });
+      if (openFindingsCount > 0) {
+        return next(createError(400, 'No se puede cerrar el plan porque existen hallazgos abiertos o en tratamiento'));
+      }
+    }
+
+    await plan.update(req.body);
     res.json({ data: plan });
+  } catch (err) { next(err); }
+};
+
+exports.eliminarPlan = async (req, res, next) => {
+  try {
+    const plan = await PlanAuditoria.findByPk(req.params.id);
+    if (!plan) return next(createError(404, 'Plan no encontrado'));
+
+    if (req.user.rol === 'auditor') {
+      if (plan.lider_id !== req.userId && plan.creado_por !== req.userId) {
+        return next(createError(403, 'No tiene permiso para eliminar planes de auditoría creados por otros'));
+      }
+    }
+
+    const findingsCount = await Hallazgo.count({ where: { plan_id: plan.id } });
+    if (findingsCount > 0) {
+      return next(createError(400, 'No se puede eliminar un plan de auditoría que tiene hallazgos asociados'));
+    }
+
+    await plan.destroy();
+    res.json({ message: 'Plan de auditoría eliminado exitosamente' });
   } catch (err) { next(err); }
 };
 
@@ -367,10 +507,49 @@ exports.crearHallazgo = async (req, res, next) => {
 
 exports.actualizarHallazgo = async (req, res, next) => {
   try {
-    const h = await Hallazgo.findByPk(req.params.id);
+    const h = await Hallazgo.findByPk(req.params.id, {
+      include: [{ model: PlanAuditoria, as: 'plan', attributes: ['lider_id'] }]
+    });
     if (!h) return next(createError(404, 'Hallazgo no encontrado'));
+
+    if (req.user.rol === 'auditor') {
+      const isCreator = h.creado_por === req.userId;
+      const isPlanLeader = h.plan && h.plan.lider_id === req.userId;
+      if (!isCreator && !isPlanLeader) {
+        return next(createError(403, 'No tiene permiso para modificar este hallazgo'));
+      }
+    }
+
+    if (req.body.estado === 'cerrado') {
+      const capaId = req.body.capa_id !== undefined ? req.body.capa_id : h.capa_id;
+      const justificacion = req.body.justificacion !== undefined ? req.body.justificacion : h.justificacion;
+      if (!capaId && (!justificacion || !justificacion.trim())) {
+        return next(createError(400, 'No se puede cerrar un hallazgo sin una CAPA asociada o sin justificación'));
+      }
+    }
+
     await h.update(req.body);
     res.json({ data: h });
+  } catch (err) { next(err); }
+};
+
+exports.eliminarHallazgo = async (req, res, next) => {
+  try {
+    const h = await Hallazgo.findByPk(req.params.id, {
+      include: [{ model: PlanAuditoria, as: 'plan', attributes: ['lider_id'] }]
+    });
+    if (!h) return next(createError(404, 'Hallazgo no encontrado'));
+
+    if (req.user.rol === 'auditor') {
+      const isCreator = h.creado_por === req.userId;
+      const isPlanLeader = h.plan && h.plan.lider_id === req.userId;
+      if (!isCreator && !isPlanLeader) {
+        return next(createError(403, 'No tiene permiso para eliminar este hallazgo'));
+      }
+    }
+
+    await h.destroy();
+    res.json({ message: 'Hallazgo eliminado exitosamente' });
   } catch (err) { next(err); }
 };
 
@@ -812,5 +991,122 @@ exports.actualizarConfiguracion = async (req, res, next) => {
       await ParametroSistema.upsert({ clave, valor: String(valor), modificado_por: req.userId });
     }
     res.json({ data: { message: 'Configuración actualizada correctamente' } });
+  } catch (err) { next(err); }
+};
+
+// ── ELIMINAR Y OPERACIONES EXTRA (MAPA DE PROCESOS) ──────────────────
+
+exports.eliminarMacroproceso = async (req, res, next) => {
+  try {
+    const macro = await Macroproceso.findByPk(req.params.id);
+    if (!macro) return next(createError(404, 'Macroproceso no encontrado'));
+
+    const procesosCount = await Proceso.count({ where: { macroproceso_id: macro.id } });
+    if (procesosCount > 0) {
+      return next(createError(400, 'No se puede eliminar el macroproceso porque tiene procesos asociados.'));
+    }
+
+    await macro.destroy();
+    res.json({ message: 'Macroproceso eliminado exitosamente' });
+  } catch (err) { next(err); }
+};
+
+exports.eliminarProceso = async (req, res, next) => {
+  try {
+    const proceso = await Proceso.findByPk(req.params.id);
+    if (!proceso) return next(createError(404, 'Proceso no encontrado'));
+
+    // Validar actividades
+    const actividadesCount = await ActividadProceso.count({ where: { proceso_id: proceso.id } });
+    if (actividadesCount > 0) {
+      return next(createError(400, 'No se puede eliminar el proceso porque tiene actividades asociadas.'));
+    }
+
+    // Validar documentos
+    const documentosCount = await Documento.count({ where: { proceso_id: proceso.id } });
+    if (documentosCount > 0) {
+      return next(createError(400, 'No se puede eliminar el proceso porque está siendo utilizado en el módulo de Documentos.'));
+    }
+
+    // Validar riesgos
+    const riesgosCount = await Riesgo.count({ where: { proceso_id: proceso.id } });
+    if (riesgosCount > 0) {
+      return next(createError(400, 'No se puede eliminar el proceso porque está siendo utilizado en el módulo de Riesgos.'));
+    }
+
+    // Validar indicadores
+    const indicadoresCount = await Indicador.count({ where: { proceso_id: proceso.id } });
+    if (indicadoresCount > 0) {
+      return next(createError(400, 'No se puede eliminar el proceso porque está siendo utilizado en el módulo de Indicadores.'));
+    }
+
+    // Validar hallazgos
+    const hallazgosCount = await Hallazgo.count({ where: { proceso_id: proceso.id } });
+    if (hallazgosCount > 0) {
+      return next(createError(400, 'No se puede eliminar el proceso porque está siendo utilizado en el módulo de Hallazgos/Auditorías.'));
+    }
+
+    await proceso.destroy();
+    res.json({ message: 'Proceso eliminado exitosamente' });
+  } catch (err) { next(err); }
+};
+
+exports.eliminarActividad = async (req, res, next) => {
+  try {
+    const act = await ActividadProceso.findByPk(req.params.id);
+    if (!act) return next(createError(404, 'Actividad no encontrada'));
+
+    await act.destroy();
+    res.json({ message: 'Actividad eliminada exitosamente' });
+  } catch (err) { next(err); }
+};
+
+exports.reordenarActividades = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { procesoId } = req.params;
+    const { ordenadosIds } = req.body;
+
+    if (!Array.isArray(ordenadosIds)) {
+      return next(createError(400, 'Se requiere un arreglo de IDs ordenados.'));
+    }
+
+    for (let i = 0; i < ordenadosIds.length; i++) {
+      const id = ordenadosIds[i];
+      await ActividadProceso.update(
+        { secuencia: i + 1 },
+        { where: { id, proceso_id: procesoId }, transaction }
+      );
+    }
+
+    await transaction.commit();
+    res.json({ message: 'Actividades reordenadas exitosamente' });
+  } catch (err) {
+    await transaction.rollback();
+    next(err);
+  }
+};
+
+exports.guardarFlujoProceso = async (req, res, next) => {
+  try {
+    const { procesoId } = req.params;
+    const { definicion_bpmn, nombre } = req.body;
+
+    const proceso = await Proceso.findByPk(procesoId);
+    if (!proceso) return next(createError(404, 'Proceso no encontrado'));
+
+    let flujo = await FlujoDeTrabajo.findOne({ where: { proceso_id: procesoId, activo: true } });
+    if (flujo) {
+      await flujo.update({ definicion_bpmn, nombre: nombre || flujo.nombre });
+    } else {
+      flujo = await FlujoDeTrabajo.create({
+        proceso_id: procesoId,
+        nombre: nombre || `Flujo de ${proceso.nombre}`,
+        definicion_bpmn: definicion_bpmn || {},
+        creado_por: req.userId
+      });
+    }
+
+    res.json({ data: flujo });
   } catch (err) { next(err); }
 };
