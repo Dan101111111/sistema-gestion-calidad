@@ -144,6 +144,40 @@ async function runSeeder() {
     }
     await Autoevaluacion.bulkCreate(autoevals, { ignoreDuplicates: true }).catch(e => console.error('Error en autoeval:', e));
 
+    // 7. Mapa de Procesos
+    console.log('Creando Macroprocesos y Procesos...');
+    const macroprocesos = [];
+    for (let i = 1; i <= 3; i++) {
+      macroprocesos.push({
+        codigo: `MACRO-DEMO-00${i}`,
+        nombre: `Macroproceso de Prueba ${i} - ${['Gestión Estratégica', 'Misional Académico', 'Soporte Administrativo'][i-1]}`,
+        descripcion: `Descripción del macroproceso ${i}`,
+        tipo: ['estrategico', 'misional', 'apoyo'][i-1],
+        orden: i,
+        activo: true,
+        creado_por: userId,
+      });
+    }
+    await sequelize.models.Macroproceso.bulkCreate(macroprocesos, { ignoreDuplicates: true }).catch(e => console.error('Error en macroprocesos:', e));
+    
+    // Obtener un macroproceso para asociarle procesos
+    const macro = await sequelize.models.Macroproceso.findOne({ where: { activo: true } });
+    if (macro) {
+      const procesos = [];
+      for (let i = 1; i <= 3; i++) {
+        procesos.push({
+          codigo: `PROC-DEMO-00${i}`,
+          nombre: `Proceso de Prueba ${i}`,
+          objetivo: `Objetivo del proceso ${i}`,
+          macroproceso_id: macro.id,
+          orden: i,
+          activo: true,
+          creado_por: userId,
+        });
+      }
+      await sequelize.models.Proceso.bulkCreate(procesos, { ignoreDuplicates: true }).catch(e => console.error('Error en procesos:', e));
+    }
+
     console.log('✅ Seeder completado exitosamente.');
     process.exit(0);
   } catch (error) {

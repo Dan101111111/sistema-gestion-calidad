@@ -47,7 +47,11 @@ export default function TiposDocumentoPage() {
     codigo: '',
     descripcion: '',
     activo: true,
-    requiere_aprobacion: true,
+  });
+
+  const [errors, setErrors] = useState({
+    nombre: '',
+    codigo: '',
   });
 
   React.useEffect(() => {
@@ -107,14 +111,37 @@ export default function TiposDocumentoPage() {
       codigo: '',
       descripcion: '',
       activo: true,
-      requiere_aprobacion: true,
     });
+    setErrors({ nombre: '', codigo: '' });
+  };
+
+  const validateField = (field: string, value: string) => {
+    let error = '';
+    if (field === 'codigo') {
+      if (!value.trim()) error = 'El código es obligatorio.';
+      else if (value.length < 2) error = 'El código debe tener al menos 2 caracteres.';
+      else if (!/^[A-Z0-9_]+$/.test(value)) error = 'El código solo puede contener mayúsculas, números y guiones bajos.';
+    }
+    if (field === 'nombre') {
+      if (!value.trim()) error = 'El nombre es obligatorio.';
+      else if (value.length < 3) error = 'El nombre debe tener al menos 3 caracteres.';
+    }
+    setErrors(prev => ({ ...prev, [field]: error }));
+    return !error;
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    validateField(field, value);
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nombre.trim() || !form.codigo.trim()) {
-      toast('error', 'El nombre y código son obligatorios');
+    const isCodigoValid = validateField('codigo', form.codigo);
+    const isNombreValid = validateField('nombre', form.nombre);
+    
+    if (!isCodigoValid || !isNombreValid) {
+      toast('error', 'Por favor, corrija los errores del formulario.');
       return;
     }
     crearMut.mutate(form);
@@ -123,8 +150,10 @@ export default function TiposDocumentoPage() {
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editItem) return;
-    if (!form.nombre.trim()) {
-      toast('error', 'El nombre es obligatorio');
+    const isNombreValid = validateField('nombre', form.nombre);
+    
+    if (!isNombreValid) {
+      toast('error', 'Por favor, corrija los errores del formulario.');
       return;
     }
     actualizarMut.mutate({
@@ -133,7 +162,6 @@ export default function TiposDocumentoPage() {
         nombre: form.nombre,
         descripcion: form.descripcion,
         activo: form.activo,
-        requiere_aprobacion: form.requiere_aprobacion,
       },
     });
   };
@@ -145,8 +173,8 @@ export default function TiposDocumentoPage() {
       codigo: item.codigo,
       descripcion: item.descripcion || '',
       activo: item.activo,
-      requiere_aprobacion: item.requiere_aprobacion !== undefined ? item.requiere_aprobacion : true,
     });
+    setErrors({ nombre: '', codigo: '' });
   };
 
   return (
@@ -230,7 +258,6 @@ export default function TiposDocumentoPage() {
                     <Th className="w-24">Código</Th>
                     <Th className="w-48">Nombre</Th>
                     <Th>Descripción</Th>
-                    <Th className="w-36">Aprobación</Th>
                     <Th className="w-24">Estado</Th>
                     <Th className="w-36">Creado en</Th>
                     <Th className="w-24 text-right">Acciones</Th>
@@ -249,11 +276,6 @@ export default function TiposDocumentoPage() {
                         <div className="text-gray-500 text-xs truncate" title={item.descripcion || ''}>
                           {item.descripcion || '—'}
                         </div>
-                      </Td>
-                      <Td>
-                        <Badge variant={item.requiere_aprobacion ? 'primary' : 'default'}>
-                          {item.requiere_aprobacion ? 'Requiere' : 'No requiere'}
-                        </Badge>
                       </Td>
                       <Td>
                         <Badge variant={item.activo ? 'success' : 'danger'}>
@@ -304,22 +326,28 @@ export default function TiposDocumentoPage() {
         <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Crear Tipo de Documento">
           <form onSubmit={handleCreateSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Código"
-                placeholder="Ej. POL"
-                value={form.codigo}
-                onChange={(e) => setForm({ ...form, codigo: e.target.value.toUpperCase() })}
-                required
-                maxLength={10}
-              />
-              <Input
-                label="Nombre"
-                placeholder="Ej. Políticas"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-                maxLength={100}
-              />
+              <div>
+                <Input
+                  label="Código"
+                  placeholder="Ej. POL"
+                  value={form.codigo}
+                  onChange={(e) => handleFieldChange('codigo', e.target.value.toUpperCase())}
+                  required
+                  maxLength={10}
+                />
+                {errors.codigo && <p className="text-xs text-red-500 mt-1 ml-1">{errors.codigo}</p>}
+              </div>
+              <div>
+                <Input
+                  label="Nombre"
+                  placeholder="Ej. Políticas"
+                  value={form.nombre}
+                  onChange={(e) => handleFieldChange('nombre', e.target.value)}
+                  required
+                  maxLength={100}
+                />
+                {errors.nombre && <p className="text-xs text-red-500 mt-1 ml-1">{errors.nombre}</p>}
+              </div>
             </div>
             <Textarea
               label="Descripción"
@@ -341,24 +369,12 @@ export default function TiposDocumentoPage() {
                   Activo
                 </label>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="crear-requiere"
-                  checked={form.requiere_aprobacion}
-                  onChange={(e) => setForm({ ...form, requiere_aprobacion: e.target.checked })}
-                  className="w-4 h-4 text-unt-primary border-gray-300 rounded focus:ring-unt-primary"
-                />
-                <label htmlFor="crear-requiere" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Requiere Aprobación
-                </label>
-              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" loading={crearMut.isPending}>
+              <Button type="submit" loading={crearMut.isPending} disabled={!!errors.codigo || !!errors.nombre}>
                 Guardar
               </Button>
             </div>
@@ -377,13 +393,16 @@ export default function TiposDocumentoPage() {
                   {form.codigo}
                 </div>
               </div>
-              <Input
-                label="Nombre"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                required
-                maxLength={100}
-              />
+              <div>
+                <Input
+                  label="Nombre"
+                  value={form.nombre}
+                  onChange={(e) => handleFieldChange('nombre', e.target.value)}
+                  required
+                  maxLength={100}
+                />
+                {errors.nombre && <p className="text-xs text-red-500 mt-1 ml-1">{errors.nombre}</p>}
+              </div>
             </div>
             <Textarea
               label="Descripción"
@@ -404,24 +423,12 @@ export default function TiposDocumentoPage() {
                   Activo
                 </label>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="edit-requiere"
-                  checked={form.requiere_aprobacion}
-                  onChange={(e) => setForm({ ...form, requiere_aprobacion: e.target.checked })}
-                  className="w-4 h-4 text-unt-primary border-gray-300 rounded focus:ring-unt-primary"
-                />
-                <label htmlFor="edit-requiere" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-                  Requiere Aprobación
-                </label>
-              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={() => setEditItem(null)}>
                 Cancelar
               </Button>
-              <Button type="submit" loading={actualizarMut.isPending}>
+              <Button type="submit" loading={actualizarMut.isPending} disabled={!!errors.nombre}>
                 Guardar
               </Button>
             </div>

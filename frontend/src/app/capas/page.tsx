@@ -8,29 +8,49 @@ import {
   Pagination, EmptyState, SkeletonCard, ProgressBar, Badge,
 } from '@/components/ui';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { capasApi } from '@/lib/api';
+import { capasApi, adminApi } from '@/lib/api';
 import { formatDate, getErrorMessage, downloadBlob, truncate } from '@/lib/utils';
-import { Plus, Download, RefreshCw, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Download, RefreshCw, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
 const ESTADOS_CICLO = ['registrada', 'en_implementacion', 'implementada', 'verificada', 'cerrada'];
+const ESTADO_LABELS: Record<string, string> = {
+  registrada: 'Registrada', en_implementacion: 'En Implementación',
+  implementada: 'Implementada', verificada: 'Verificada', cerrada: 'Cerrada',
+};
 
-function EstadoStepper({ estado }: { estado: string }) {
-  const idx = ESTADOS_CICLO.indexOf(estado);
+function AvanceStepper({ estado, avance }: { estado: string, avance: number }) {
+  const isRechazada = estado === 'rechazada';
+  let idx = -1;
+  if (!isRechazada) {
+    if (avance > 0) idx = 0;
+    if (avance >= 25) idx = 1;
+    if (avance >= 50) idx = 2;
+    if (avance >= 75) idx = 3;
+    if (avance >= 100) idx = 5;
+  }
+
+  const NODOS = [1, 2, 3, 4, 5];
+
   return (
     <div className="flex items-center gap-0">
-      {ESTADOS_CICLO.map((e, i) => (
-        <React.Fragment key={e}>
-          <div className={cn(
-            'flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all',
-            i < idx ? 'bg-green-500 text-white' : i === idx ? 'bg-unt-primary text-white ring-2 ring-unt-primary/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-          )}>
-            {i < idx ? <CheckCircle className="w-3.5 h-3.5" /> : i + 1}
+      {NODOS.map((n, i) => (
+        <React.Fragment key={n}>
+          <div
+            className={cn(
+              'flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold transition-all',
+              isRechazada ? 'bg-red-200 dark:bg-red-900/40 text-red-400' :
+              i < idx ? 'bg-green-500 text-white' :
+              i === idx ? 'bg-unt-primary text-white ring-2 ring-unt-primary/30' :
+              'bg-gray-200 dark:bg-gray-700 text-gray-500'
+            )}
+          >
+            {!isRechazada && i < idx ? <CheckCircle className="w-3.5 h-3.5" /> : n}
           </div>
-          {i < ESTADOS_CICLO.length - 1 && (
-            <div className={cn('h-0.5 w-6', i < idx ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700')} />
+          {i < NODOS.length - 1 && (
+            <div className={cn('h-0.5 w-5', !isRechazada && i < idx ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700')} />
           )}
         </React.Fragment>
       ))}
@@ -50,6 +70,7 @@ export default function CapasPage() {
   const [selected, setSelected] = useState<any>(null);
   const [showEstado, setShowEstado] = useState(false);
   const [showSeguimiento, setShowSeguimiento] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [estadoForm, setEstadoForm] = useState({ nuevo_estado: '', comentario: '', efectividad: '' });
   const [seguimientoForm, setSeguimientoForm] = useState({ avance_porcentaje: 0, observaciones: '' });
 
@@ -63,6 +84,12 @@ export default function CapasPage() {
     queryFn: () => capasApi.obtener(selected.id).then(r => r.data.data),
     enabled: !!selected?.id,
   });
+
+  const { data: usuariosData } = useQuery({
+    queryKey: ['usuarios'],
+    queryFn: () => adminApi.usuarios.listar({ limit: 100 }).then(r => r.data),
+  });
+  const usuarios = usuariosData?.data || [];
 
   const crearMut = useMutation({
     mutationFn: (d: object) => capasApi.crear(d),
@@ -85,13 +112,18 @@ export default function CapasPage() {
 
   const eliminarMut = useMutation({
     mutationFn: (id: string) => capasApi.eliminar(id),
-    onSuccess: () => { toast('success', 'CAPA eliminada'); qc.invalidateQueries({ queryKey: ['capas'] }); setSelected(null); },
-    onError: (e) => toast('error', getErrorMessage(e)),
+    onSuccess: () => { toast('success', 'CAPA eliminada'); qc.invalidateQueries({ queryKey: ['capas'] }); setSelected(null); setShowConfirmDelete(false); },
+    onError: (e) => { toast('error', getErrorMessage(e)); setShowConfirmDelete(false); },
   });
 
   const seguimientoMut = useMutation({
     mutationFn: (d: object) => capasApi.agregarSeguimiento(selected.id, d),
-    onSuccess: () => { toast('success', 'Seguimiento registrado'); qc.invalidateQueries({ queryKey: ['capa-detalle'] }); setShowSeguimiento(false); },
+    onSuccess: () => { 
+      toast('success', 'Seguimiento registrado'); 
+      qc.invalidateQueries({ queryKey: ['capas'] });
+      qc.invalidateQueries({ queryKey: ['capa-detalle'] }); 
+      setShowSeguimiento(false); 
+    },
     onError: (e) => toast('error', getErrorMessage(e)),
   });
 
@@ -176,7 +208,9 @@ export default function CapasPage() {
                             <Td><span className="text-xs text-gray-600 dark:text-gray-400">{truncate(c.descripcion, 55)}</span></Td>
                             <Td><span className="text-xs">{c.responsable ? `${c.responsable.nombre} ${c.responsable.apellido}` : '—'}</span></Td>
                             <Td><span className={cn('text-xs', vencida && 'text-red-500 font-medium')}>{formatDate(c.fecha_implementacion)}</span></Td>
-                            <Td className="min-w-[100px]"><EstadoStepper estado={c.estado} /></Td>
+                            <Td className="min-w-[140px]">
+                              <AvanceStepper estado={c.estado} avance={c.seguimientos?.[0]?.avance_porcentaje || 0} />
+                            </Td>
                             <Td><EstadoBadge estado={c.estado} /></Td>
                           </Tr>
                         );
@@ -203,6 +237,33 @@ export default function CapasPage() {
                       <span className="font-mono text-sm font-bold text-unt-primary">{capaDetalle?.codigo || selected.codigo}</span>
                       <EstadoBadge estado={capaDetalle?.estado || selected.estado} />
                     </div>
+                    {/* Barra de progreso del último seguimiento */}
+                    {capaDetalle?.seguimientos?.length > 0 && (() => {
+                      const lastSeg = capaDetalle.seguimientos[0];
+                      const avance = lastSeg?.avance_porcentaje ?? 0;
+                      return (
+                        <div className="mt-3 space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 font-medium">Avance actual</span>
+                            <span className={cn(
+                              'text-sm font-bold',
+                              avance >= 80 ? 'text-green-600 dark:text-green-400' :
+                              avance >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
+                              'text-red-500'
+                            )}>{avance}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={cn(
+                                'h-2 rounded-full transition-all duration-500',
+                                avance >= 80 ? 'bg-green-500' : avance >= 50 ? 'bg-yellow-400' : 'bg-red-500'
+                              )}
+                              style={{ width: `${avance}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     <div>
@@ -237,19 +298,20 @@ export default function CapasPage() {
                         <Button size="sm" onClick={() => { setEstadoForm({ nuevo_estado: TRANSICIONES[capaDetalle?.estado || selected.estado]?.[0] || '', comentario: '', efectividad: '' }); setShowEstado(true); }}>
                           Cambiar Estado
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => { setSeguimientoForm({ avance_porcentaje: 0, observaciones: '' }); setShowSeguimiento(true); }}>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          // Pre-fill with last known avance
+                          const lastSeg = capaDetalle?.seguimientos?.[0];
+                          setSeguimientoForm({ avance_porcentaje: lastSeg?.avance_porcentaje ?? 0, observaciones: '' });
+                          setShowSeguimiento(true);
+                        }}>
                           + Seguimiento
                         </Button>
                       </div>
                     )}
 
                     {canEdit && (
-                      <Button size="sm" variant="danger" className="w-full mt-2" loading={eliminarMut.isPending}
-                        onClick={() => {
-                          if (confirm('¿Está seguro de que desea eliminar esta CAPA? Esta acción no se puede deshacer y fallará si tiene seguimientos.')) {
-                            eliminarMut.mutate(selected.id);
-                          }
-                        }}>
+                      <Button size="sm" variant="danger" className="w-full mt-2" icon={<Trash2 className="w-3.5 h-3.5" />}
+                        onClick={() => setShowConfirmDelete(true)}>
                         Eliminar CAPA
                       </Button>
                     )}
@@ -284,7 +346,7 @@ export default function CapasPage() {
 
       {/* Modal crear CAPA */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nueva CAPA" size="lg">
-        <CapaForm onSubmit={crearMut.mutate} loading={crearMut.isPending} />
+        <CapaForm onSubmit={crearMut.mutate} loading={crearMut.isPending} usuarios={usuarios} />
       </Modal>
 
       {/* Modal cambiar estado */}
@@ -309,7 +371,12 @@ export default function CapasPage() {
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowEstado(false)}>Cancelar</Button>
-            <Button size="sm" onClick={() => estadoMut.mutate(estadoForm)} loading={estadoMut.isPending} disabled={isConfirmDisabled}>
+            <Button size="sm" onClick={() => {
+              // Strip empty efectividad so Joi doesn't get an empty string
+              const payload: any = { ...estadoForm };
+              if (!payload.efectividad) delete payload.efectividad;
+              estadoMut.mutate(payload);
+            }} loading={estadoMut.isPending} disabled={isConfirmDisabled}>
               Confirmar
             </Button>
           </div>
@@ -319,16 +386,81 @@ export default function CapasPage() {
       {/* Modal seguimiento */}
       <Modal open={showSeguimiento} onClose={() => setShowSeguimiento(false)} title="Registrar Seguimiento" size="sm">
         <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avance: {seguimientoForm.avance_porcentaje}%</label>
-            <input type="range" min={0} max={100} value={seguimientoForm.avance_porcentaje}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avance actual</label>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  placeholder="0"
+                  value={seguimientoForm.avance_porcentaje === 0 ? '' : seguimientoForm.avance_porcentaje}
+                  onChange={e => {
+                    if (e.target.value === '') {
+                      setSeguimientoForm(f => ({ ...f, avance_porcentaje: 0 }));
+                      return;
+                    }
+                    const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                    if (!isNaN(num)) {
+                      setSeguimientoForm(f => ({ ...f, avance_porcentaje: Math.min(100, num) }));
+                    }
+                  }}
+                  className={cn(
+                    "w-16 text-center text-lg font-black rounded-md px-1 py-0.5 focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors",
+                    seguimientoForm.avance_porcentaje >= 80 ? 'text-green-600 focus:ring-green-500' :
+                    seguimientoForm.avance_porcentaje >= 50 ? 'text-yellow-500 focus:ring-yellow-500' : 'text-red-500 focus:ring-red-500'
+                  )}
+                />
+                <span className="text-lg font-bold text-gray-500">%</span>
+              </div>
+            </div>
+            <input
+              type="range" min={0} max={100} step={1}
+              value={seguimientoForm.avance_porcentaje}
               onChange={e => setSeguimientoForm(f => ({ ...f, avance_porcentaje: parseInt(e.target.value) }))}
-              className="w-full" />
+              className="w-full accent-unt-primary h-2 cursor-pointer" />
+            <div className="flex justify-between text-[10px] text-gray-400">
+              <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+            </div>
+            {/* Barra de vista previa */}
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+              <div
+                className={cn(
+                  'h-2.5 rounded-full transition-all duration-300',
+                  seguimientoForm.avance_porcentaje >= 80 ? 'bg-green-500' :
+                  seguimientoForm.avance_porcentaje >= 50 ? 'bg-yellow-400' : 'bg-red-500'
+                )}
+                style={{ width: `${seguimientoForm.avance_porcentaje}%` }}
+              />
+            </div>
           </div>
-          <Textarea label="Observaciones" value={seguimientoForm.observaciones} onChange={e => setSeguimientoForm(f => ({ ...f, observaciones: e.target.value }))} />
+          <Textarea label="Observaciones" placeholder="Describa el avance o novedades del periodo..." value={seguimientoForm.observaciones} onChange={e => setSeguimientoForm(f => ({ ...f, observaciones: e.target.value }))} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowSeguimiento(false)}>Cancelar</Button>
             <Button size="sm" onClick={() => seguimientoMut.mutate(seguimientoForm)} loading={seguimientoMut.isPending}>Guardar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal confirmar eliminación */}
+      <Modal open={showConfirmDelete} onClose={() => setShowConfirmDelete(false)} title="Confirmar Eliminación" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400">Esta acción no se puede deshacer</p>
+              <p className="text-xs text-red-600 dark:text-red-300 mt-1">
+                Va a eliminar la CAPA <span className="font-mono font-bold">{selected?.codigo}</span> y todos sus seguimientos.
+                {!['rechazada','cerrada'].includes(selected?.estado) && (
+                  <span className="block mt-1 font-semibold">⚠ Solo se puede eliminar una CAPA activa si no tiene seguimientos manuales registrados.</span>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowConfirmDelete(false)}>Cancelar</Button>
+            <Button variant="danger" size="sm" loading={eliminarMut.isPending} onClick={() => eliminarMut.mutate(selected.id)}>
+              Sí, eliminar
+            </Button>
           </div>
         </div>
       </Modal>
@@ -336,24 +468,74 @@ export default function CapasPage() {
   );
 }
 
-function CapaForm({ onSubmit, loading }: { onSubmit: (d: any) => void; loading: boolean }) {
-  const [form, setForm] = useState({ codigo: '', tipo: 'correctiva', descripcion: '', causa_raiz: '', accion_propuesta: '', fecha_implementacion: '' });
+function CapaForm({ onSubmit, loading, usuarios }: { onSubmit: (d: any) => void; loading: boolean; usuarios: any[] }) {
+  const [form, setForm] = useState({ codigo: '', tipo: 'correctiva', descripcion: '', causa_raiz: '', accion_propuesta: '', responsable_id: '', fecha_implementacion: '' });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (name: string, value: string) => {
+    if (['codigo', 'descripcion', 'accion_propuesta', 'fecha_implementacion'].includes(name)) {
+      if (!value || value.trim() === '') return 'Este campo es requerido';
+    }
+    if (name === 'codigo' && value && !/^[A-Z0-9-]+$/.test(value)) {
+      return 'Solo letras mayúsculas, números y guiones';
+    }
+    if (['descripcion', 'accion_propuesta'].includes(name) && value && value.trim().length < 5) {
+      return 'Mínimo 5 caracteres';
+    }
+    return null;
+  };
+
+  const handleFieldChange = (name: string, value: string) => {
+    setForm(p => ({ ...p, [name]: value }));
+    const err = validateField(name, value);
+    setErrors(e => {
+      const newE = { ...e };
+      if (err) newE[name] = err;
+      else delete newE[name];
+      return newE;
+    });
+  };
+
+  const handleValidateAll = () => {
+    const errs: Record<string, string> = {};
+    Object.keys(form).forEach(key => {
+      const err = validateField(key, (form as any)[key]);
+      if (err) errs[key] = err;
+    });
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (handleValidateAll()) {
+      onSubmit(form);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <Input label="Código*" placeholder="CAP-2024-001" value={form.codigo} onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))} />
-        <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+        <Input label="Código*" placeholder="Ej: CAP-2024-001" value={form.codigo} onChange={e => handleFieldChange('codigo', e.target.value)} error={errors.codigo} />
+        <Select label="Tipo" value={form.tipo} onChange={e => handleFieldChange('tipo', e.target.value)}>
           <option value="correctiva">Correctiva</option>
           <option value="preventiva">Preventiva</option>
           <option value="mejora">Mejora</option>
         </Select>
       </div>
-      <Textarea label="Descripción*" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} />
-      <Textarea label="Causa Raíz" value={form.causa_raiz} onChange={e => setForm(f => ({ ...f, causa_raiz: e.target.value }))} />
-      <Textarea label="Acción Propuesta*" value={form.accion_propuesta} onChange={e => setForm(f => ({ ...f, accion_propuesta: e.target.value }))} />
-      <Input label="Fecha de Implementación*" type="date" value={form.fecha_implementacion} onChange={e => setForm(f => ({ ...f, fecha_implementacion: e.target.value }))} />
+      <Textarea label="Descripción*" value={form.descripcion} onChange={e => handleFieldChange('descripcion', e.target.value)} error={errors.descripcion} />
+      <Textarea label="Causa Raíz" value={form.causa_raiz} onChange={e => handleFieldChange('causa_raiz', e.target.value)} />
+      <Textarea label="Acción Propuesta*" value={form.accion_propuesta} onChange={e => handleFieldChange('accion_propuesta', e.target.value)} error={errors.accion_propuesta} />
+      
+      <div className="grid grid-cols-2 gap-4">
+        <Select label="Responsable" value={form.responsable_id} onChange={e => handleFieldChange('responsable_id', e.target.value)}>
+          <option value="">Seleccionar responsable...</option>
+          {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre} {u.apellido} ({u.rol})</option>)}
+        </Select>
+        <Input label="Fecha de Implementación*" type="date" value={form.fecha_implementacion} onChange={e => handleFieldChange('fecha_implementacion', e.target.value)} error={errors.fecha_implementacion} />
+      </div>
+
       <div className="flex justify-end pt-2">
-        <Button onClick={() => onSubmit(form)} loading={loading}>Crear CAPA</Button>
+        <Button onClick={handleSubmit} loading={loading}>Crear CAPA</Button>
       </div>
     </div>
   );

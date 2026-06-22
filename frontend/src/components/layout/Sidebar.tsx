@@ -113,7 +113,7 @@ export function Sidebar({ noLeidas = 0 }: SidebarProps) {
             {/* Section items */}
             {section.items.map(item => {
               const Icon = item.icon;
-              const active = pathname.startsWith(item.href);
+              const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href);
               const isNotif = item.href === '/notificaciones';
 
               return (

@@ -39,6 +39,15 @@ exports.listar = async (req, res, next) => {
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido', 'email'] },
         { model: Usuario, as: 'creador', attributes: ['id', 'nombre', 'apellido'] },
         { model: Hallazgo, as: 'hallazgo', attributes: ['id', 'codigo', 'tipo', 'gravedad'] },
+        // Incluir el último seguimiento para mostrar avance en la lista
+        {
+          model: SeguimientoCapa,
+          as: 'seguimientos',
+          attributes: ['avance_porcentaje', 'creado_en'],
+          separate: true,       // query separada para que el ORDER funcione
+          order: [['creado_en', 'DESC']],
+          limit: 1,
+        },
       ],
       order: [['creado_en', 'DESC']],
       limit: parseInt(limit),
@@ -58,8 +67,11 @@ exports.obtener = async (req, res, next) => {
       include: [
         { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido', 'email'] },
         { model: Hallazgo, as: 'hallazgo' },
-        { model: SeguimientoCapa, as: 'seguimientos',
+        {
+          model: SeguimientoCapa,
+          as: 'seguimientos',
           include: [{ model: Usuario, as: 'registrador', foreignKey: 'registrado_por', attributes: ['id','nombre','apellido'] }],
+          separate: true,       // separate:true para que el ORDER realmente funcione en PostgreSQL
           order: [['creado_en', 'DESC']],
         },
       ],
@@ -244,12 +256,23 @@ exports.eliminar = async (req, res, next) => {
     const capa = await Capa.findByPk(req.params.id);
     if (!capa) return next(createError(404, 'CAPA no encontrada'));
 
-    const seguimientosCount = await SeguimientoCapa.count({ where: { capa_id: capa.id } });
-    if (seguimientosCount > 0) {
-      return next(createError(400, 'No se puede eliminar una CAPA que tiene seguimientos registrados'));
+    // Si la CAPA está rechazada o cerrada, permitir eliminar sus seguimientos en cascada
+    const esTerminal = ['rechazada', 'cerrada'].includes(capa.estado);
+
+    if (!esTerminal) {
+      // Para CAPAs activas, no permitir eliminar si hay seguimientos manuales
+      const seguimientosCount = await SeguimientoCapa.count({ where: { capa_id: capa.id } });
+      if (seguimientosCount > 0) {
+        return next(createError(400, 'No se puede eliminar una CAPA activa que tiene seguimientos registrados. Primero recházala o ciérrala.'));
+      }
     }
 
+    // Eliminar seguimientos en cascada (para rechazadas/cerradas o si no tiene ninguno)
+    await SeguimientoCapa.destroy({ where: { capa_id: capa.id } });
+
+    // Desvincular hallazgos
     await Hallazgo.update({ capa_id: null, estado: 'abierto' }, { where: { capa_id: capa.id } });
+
     await capa.destroy();
     res.json({ message: 'CAPA eliminada exitosamente' });
   } catch (err) { next(err); }

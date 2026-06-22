@@ -131,7 +131,7 @@ const capaSchemas = {
   cambiarEstado: Joi.object({
     nuevo_estado: Joi.string().valid('registrada','en_implementacion','implementada','verificada','cerrada','rechazada').required(),
     comentario:   Joi.string().max(2000).optional().allow(''),
-    efectividad:  Joi.string().valid('efectiva','parcial','parcialmente_efectiva','no_efectiva','pendiente').optional(),
+    efectividad:  Joi.string().valid('efectiva','parcial','parcialmente_efectiva','no_efectiva','pendiente').optional().allow(''),
   }),
   seguimiento: Joi.object({
     avance_porcentaje: Joi.number().integer().min(0).max(100).required(),

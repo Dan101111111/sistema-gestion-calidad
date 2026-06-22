@@ -674,8 +674,8 @@ export default function ProcesosPage() {
       <Modal open={showCreateMacro} onClose={() => setShowCreateMacro(false)} title="Nuevo Macroproceso" size="md">
         <FormHelper
           fields={[
-            { name: 'codigo', label: 'Código*', placeholder: 'MP-EST-01', required: true },
-            { name: 'nombre', label: 'Nombre*', placeholder: 'Direccionamiento Estratégico', required: true },
+            { name: 'codigo', label: 'Código*', placeholder: 'Ej: MP-EST-01', required: true, pattern: /^[A-Z0-9-]+$/, patternMessage: 'Solo letras mayúsculas, números y guiones (-)' },
+            { name: 'nombre', label: 'Nombre*', placeholder: 'Direccionamiento Estratégico', required: true, minLength: 5 },
             { name: 'tipo', label: 'Tipo', type: 'select', options: [{ value: 'estrategico', label: 'Estratégico' }, { value: 'misional', label: 'Misional' }, { value: 'apoyo', label: 'Apoyo' }, { value: 'evaluacion', label: 'Evaluación' }] },
             { name: 'responsable_id', label: 'Responsable', type: 'select', options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
             { name: 'descripcion', label: 'Descripción', type: 'textarea' },
@@ -693,7 +693,7 @@ export default function ProcesosPage() {
             initialValues={showEditMacro}
             fields={[
               { name: 'codigo', label: 'Código (Fijo)', disabled: true },
-              { name: 'nombre', label: 'Nombre*', required: true },
+              { name: 'nombre', label: 'Nombre*', required: true, minLength: 5 },
               { name: 'tipo', label: 'Tipo', type: 'select', options: [{ value: 'estrategico', label: 'Estratégico' }, { value: 'misional', label: 'Misional' }, { value: 'apoyo', label: 'Apoyo' }, { value: 'evaluacion', label: 'Evaluación' }] },
               { name: 'responsable_id', label: 'Responsable', type: 'select', options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
               { name: 'descripcion', label: 'Descripción', type: 'textarea' },
@@ -709,8 +709,8 @@ export default function ProcesosPage() {
       <Modal open={!!showCreateProceso} onClose={() => setShowCreateProceso(null)} title="Nuevo Proceso" size="md">
         <FormHelper
           fields={[
-            { name: 'codigo', label: 'Código*', placeholder: 'PR-FOR-01', required: true },
-            { name: 'nombre', label: 'Nombre*', placeholder: 'Gestión de Matrícula', required: true },
+            { name: 'codigo', label: 'Código*', placeholder: 'Ej: PR-FOR-01', required: true, pattern: /^[A-Z0-9-]+$/, patternMessage: 'Solo letras mayúsculas, números y guiones (-)' },
+            { name: 'nombre', label: 'Nombre*', placeholder: 'Gestión de Matrícula', required: true, minLength: 5 },
             { name: 'responsable_id', label: 'Líder Responsable*', type: 'select', required: true, options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
             { name: 'estado', label: 'Estado', type: 'select', options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }, { value: 'en_mejora', label: 'En Mejora' }] },
             { name: 'objetivo', label: 'Objetivo', type: 'textarea' },
@@ -729,7 +729,7 @@ export default function ProcesosPage() {
             initialValues={showEditProceso}
             fields={[
               { name: 'codigo', label: 'Código (Fijo)', disabled: true },
-              { name: 'nombre', label: 'Nombre*', required: true },
+              { name: 'nombre', label: 'Nombre*', required: true, minLength: 5 },
               { name: 'responsable_id', label: 'Líder Responsable*', type: 'select', required: true, options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
               { name: 'estado', label: 'Estado', type: 'select', options: [{ value: 'activo', label: 'Activo' }, { value: 'inactivo', label: 'Inactivo' }, { value: 'en_mejora', label: 'En Mejora' }] },
               { name: 'objetivo', label: 'Objetivo', type: 'textarea' },
@@ -746,9 +746,9 @@ export default function ProcesosPage() {
       <Modal open={!!showCreateActividad} onClose={() => setShowCreateActividad(null)} title="Nueva Actividad" size="md">
         <FormHelper
           fields={[
-            { name: 'codigo', label: 'Código*', placeholder: 'ACT-001', required: true },
-            { name: 'nombre', label: 'Nombre*', placeholder: 'Validar requisitos de matrícula', required: true },
-            { name: 'secuencia', label: 'Secuencia (Nro. Orden)*', type: 'number', placeholder: '1', required: true },
+            { name: 'codigo', label: 'Código*', placeholder: 'Ej: ACT-001', required: true, pattern: /^[A-Z0-9-]+$/, patternMessage: 'Solo letras mayúsculas, números y guiones (-)' },
+            { name: 'nombre', label: 'Nombre*', placeholder: 'Validar requisitos de matrícula', required: true, minLength: 5 },
+            { name: 'secuencia', label: 'Secuencia (Nro. Orden)*', type: 'number', placeholder: '1', required: true, pattern: /^[1-9][0-9]*$/, patternMessage: 'Debe ser un entero positivo mayor a 0' },
             { name: 'responsable_id', label: 'Responsable Operativo*', type: 'select', required: true, options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
             { name: 'entradas', label: 'Entradas (Recursos)', placeholder: 'Ficha de inscripción, constancia de pago' },
             { name: 'salidas', label: 'Salidas (Resultados)', placeholder: 'Acta de matrícula generada' },
@@ -767,9 +767,9 @@ export default function ProcesosPage() {
           <FormHelper
             initialValues={showEditActividad}
             fields={[
-              { name: 'codigo', label: 'Código*', required: true },
-              { name: 'nombre', label: 'Nombre*', required: true },
-              { name: 'secuencia', label: 'Secuencia (Nro. Orden)*', type: 'number', required: true },
+              { name: 'codigo', label: 'Código*', required: true, pattern: /^[A-Z0-9-]+$/, patternMessage: 'Solo letras mayúsculas, números y guiones (-)' },
+              { name: 'nombre', label: 'Nombre*', required: true, minLength: 5 },
+              { name: 'secuencia', label: 'Secuencia (Nro. Orden)*', type: 'number', required: true, pattern: /^[1-9][0-9]*$/, patternMessage: 'Debe ser un entero positivo mayor a 0' },
               { name: 'responsable_id', label: 'Responsable Operativo*', type: 'select', required: true, options: [{ value: '', label: 'Seleccionar...' }, ...usuarios.map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido} (${u.rol})` }))] },
               { name: 'entradas', label: 'Entradas (Recursos)' },
               { name: 'salidas', label: 'Salidas (Resultados)' },
@@ -858,17 +858,32 @@ function FormHelper({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const validateField = (name: string, value: any, f: any) => {
+    if (f.required && (!value || String(value).trim() === '')) return 'Este campo es requerido';
+    if (value && f.pattern && !f.pattern.test(String(value))) return f.patternMessage || 'Formato inválido';
+    if (value && f.minLength && String(value).trim().length < f.minLength) return `Mínimo ${f.minLength} caracteres`;
+    return null;
+  };
+
   const handleFieldChange = (name: string, value: any) => {
     setForm(p => ({ ...p, [name]: value }));
-    if (errors[name]) setErrors(e => { const { [name]: _, ...r } = e; return r; });
+    const f = fields.find(f => f.name === name);
+    if (f) {
+      const err = validateField(name, value, f);
+      setErrors(e => {
+        const newE = { ...e };
+        if (err) newE[name] = err;
+        else delete newE[name];
+        return newE;
+      });
+    }
   };
 
   const handleValidate = () => {
     const errs: Record<string, string> = {};
     fields.forEach(f => {
-      if (f.required && (!form[f.name] || String(form[f.name]).trim() === '')) {
-        errs[f.name] = 'Este campo es requerido';
-      }
+      const err = validateField(f.name, form[f.name], f);
+      if (err) errs[f.name] = err;
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;

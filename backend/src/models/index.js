@@ -50,7 +50,6 @@ const TipoDocumento = sequelize.define('TipoDocumento', {
   codigo: { type: DataTypes.STRING(10), allowNull: false, unique: true },
   descripcion: DataTypes.TEXT,
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
-  requiere_aprobacion: { type: DataTypes.BOOLEAN, defaultValue: true },
 }, { schema: S, tableName: 'tipos_documento', timestamps: true, createdAt: 'creado_en', updatedAt: false });
 
 // ============================================================
@@ -82,8 +81,6 @@ const Proceso = sequelize.define('Proceso', {
   macroproceso_id: DataTypes.UUID,
   responsable_id: DataTypes.UUID,
   orden: { type: DataTypes.INTEGER, defaultValue: 0 },
-  estado: { type: DataTypes.STRING(30), defaultValue: 'activo',
-    validate: { isIn: [['activo', 'inactivo', 'en_mejora']] } },
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
   creado_por: DataTypes.UUID,
   modificado_por: DataTypes.UUID,
@@ -319,7 +316,6 @@ const Hallazgo = sequelize.define('Hallazgo', {
   estado: { type: DataTypes.STRING(30), defaultValue: 'abierto',
     validate: { isIn: [['abierto','en_proceso','en_tratamiento','cerrado']] } },
   capa_id: DataTypes.UUID,
-  justificacion: DataTypes.TEXT,
   archivo_id: DataTypes.UUID,
   creado_por: DataTypes.UUID,
 }, { schema: S, tableName: 'hallazgos', timestamps: true, createdAt: 'creado_en', updatedAt: 'modificado_en' });

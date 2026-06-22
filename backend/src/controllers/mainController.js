@@ -29,7 +29,7 @@ exports.listarMacroprocesos = async (req, res, next) => {
           model: Proceso,
           as: 'procesos',
           required: false,
-          attributes: ['id', 'codigo', 'nombre', 'orden', 'estado', 'responsable_id'],
+          attributes: ['id', 'codigo', 'nombre', 'orden', 'responsable_id'],
           include: [
             { model: Usuario, as: 'responsable', attributes: ['id', 'nombre', 'apellido'] }
           ]
@@ -67,10 +67,9 @@ exports.actualizarMacroproceso = async (req, res, next) => {
 
 exports.listarProcesos = async (req, res, next) => {
   try {
-    const { macroproceso_id, q, estado } = req.query;
+    const { macroproceso_id, q } = req.query;
     const where = {};
     if (macroproceso_id) where.macroproceso_id = macroproceso_id;
-    if (estado) where.estado = estado;
     if (q) where[Op.or] = [{ nombre: { [Op.iLike]: `%${q}%` } }, { codigo: { [Op.iLike]: `%${q}%` } }];
 
     const procesos = await Proceso.findAll({
