@@ -55,7 +55,7 @@ export default function PerfilPage() {
   const [datosForm, setDatosForm] = useState({
     nombre:   user?.nombre   || '',
     apellido: user?.apellido || '',
-    telefono: '',
+    telefono: user?.telefono || '',
     facultad: user?.facultad || '',
     escuela:  user?.escuela  || '',
   });
@@ -192,6 +192,10 @@ export default function PerfilPage() {
               />
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm space-y-1">
                 <p className="text-gray-500 text-xs uppercase font-semibold mb-2">Información de cuenta (no editable)</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Código institucional:</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{user?.codigo || '—'}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Email institucional:</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200">{user?.email}</span>

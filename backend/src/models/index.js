@@ -10,6 +10,7 @@ const Usuario = sequelize.define('Usuario', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   nombre: { type: DataTypes.STRING(100), allowNull: false },
   apellido: { type: DataTypes.STRING(100), allowNull: false },
+  codigo: { type: DataTypes.STRING(50), allowNull: true, unique: true },
   email: { type: DataTypes.STRING(255), allowNull: false, unique: true },
   password_hash: { type: DataTypes.TEXT, allowNull: false },
   rol: { type: DataTypes.STRING(50), allowNull: false, defaultValue: 'invitado',
@@ -49,6 +50,7 @@ const TipoDocumento = sequelize.define('TipoDocumento', {
   codigo: { type: DataTypes.STRING(10), allowNull: false, unique: true },
   descripcion: DataTypes.TEXT,
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
+  requiere_aprobacion: { type: DataTypes.BOOLEAN, defaultValue: true },
 }, { schema: S, tableName: 'tipos_documento', timestamps: true, createdAt: 'creado_en', updatedAt: false });
 
 // ============================================================
@@ -60,7 +62,7 @@ const Macroproceso = sequelize.define('Macroproceso', {
   nombre: { type: DataTypes.STRING(200), allowNull: false },
   descripcion: DataTypes.TEXT,
   tipo: { type: DataTypes.STRING(50), defaultValue: 'estrategico',
-    validate: { isIn: [['estrategico','misional','apoyo']] } },
+    validate: { isIn: [['estrategico','misional','apoyo','evaluacion']] } },
   orden: { type: DataTypes.INTEGER, defaultValue: 0 },
   responsable_id: DataTypes.UUID,
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
@@ -80,6 +82,8 @@ const Proceso = sequelize.define('Proceso', {
   macroproceso_id: DataTypes.UUID,
   responsable_id: DataTypes.UUID,
   orden: { type: DataTypes.INTEGER, defaultValue: 0 },
+  estado: { type: DataTypes.STRING(30), defaultValue: 'activo',
+    validate: { isIn: [['activo', 'inactivo', 'en_mejora']] } },
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
   creado_por: DataTypes.UUID,
   modificado_por: DataTypes.UUID,
@@ -91,10 +95,12 @@ const Proceso = sequelize.define('Proceso', {
 const ActividadProceso = sequelize.define('ActividadProceso', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   proceso_id: { type: DataTypes.UUID, allowNull: false },
+  codigo: { type: DataTypes.STRING(50), allowNull: false, unique: true },
   nombre: { type: DataTypes.STRING(200), allowNull: false },
   descripcion: DataTypes.TEXT,
   entradas: DataTypes.TEXT,
   salidas: DataTypes.TEXT,
+  indicadores: DataTypes.TEXT,
   responsable_id: DataTypes.UUID,
   secuencia: { type: DataTypes.INTEGER, defaultValue: 0 },
   activo: { type: DataTypes.BOOLEAN, defaultValue: true },
@@ -123,7 +129,7 @@ const Documento = sequelize.define('Documento', {
   tipo_id: DataTypes.UUID,
   contenido: DataTypes.TEXT,
   estado: { type: DataTypes.STRING(30), defaultValue: 'borrador',
-    validate: { isIn: [['borrador','en_revision','aprobado','rechazado','archivado']] } },
+    validate: { isIn: [['borrador','en_revision','aprobado','rechazado','archivado','obsoleto']] } },
   version_actual: { type: DataTypes.INTEGER, defaultValue: 1 },
   proceso_id: DataTypes.UUID,
   responsable_id: DataTypes.UUID,
@@ -232,12 +238,12 @@ const PlanAuditoria = sequelize.define('PlanAuditoria', {
   codigo: { type: DataTypes.STRING(30), allowNull: false, unique: true },
   nombre: { type: DataTypes.STRING(200), allowNull: false },
   tipo: { type: DataTypes.STRING(30), defaultValue: 'interna',
-    validate: { isIn: [['interna','externa','seguimiento','certificacion']] } },
+    validate: { isIn: [['interna','externa','especial','seguimiento','certificacion']] } },
   alcance: DataTypes.TEXT,
   fecha_inicio: { type: DataTypes.DATEONLY, allowNull: false },
   fecha_fin: { type: DataTypes.DATEONLY, allowNull: false },
   estado: { type: DataTypes.STRING(30), defaultValue: 'planificado',
-    validate: { isIn: [['planificado','en_ejecucion','completado','cancelado']] } },
+    validate: { isIn: [['planificado','en_ejecucion','ejecutado','cerrado','cancelado']] } },
   lider_id: DataTypes.UUID,
   objetivo: DataTypes.TEXT,
   creado_por: DataTypes.UUID,
@@ -289,7 +295,7 @@ const Capa = sequelize.define('Capa', {
   estado: { type: DataTypes.STRING(30), defaultValue: 'registrada',
     validate: { isIn: [['registrada','en_implementacion','implementada','verificada','cerrada','rechazada']] } },
   efectividad: { type: DataTypes.STRING(30),
-    validate: { isIn: [[null,'efectiva','parcialmente_efectiva','no_efectiva']] } },
+    validate: { isIn: [[null,'efectiva','parcial','parcialmente_efectiva','no_efectiva','pendiente']] } },
   capa_origen_id: DataTypes.UUID,
   creado_por: DataTypes.UUID,
   modificado_por: DataTypes.UUID,
@@ -305,14 +311,15 @@ const Hallazgo = sequelize.define('Hallazgo', {
   tipo: { type: DataTypes.STRING(30), defaultValue: 'no_conformidad',
     validate: { isIn: [['no_conformidad','observacion','oportunidad_mejora','buena_practica']] } },
   gravedad: { type: DataTypes.STRING(20), defaultValue: 'mayor',
-    validate: { isIn: [['critica','mayor','menor','observacion']] } },
+    validate: { isIn: [['baja','media','alta','critica','mayor','menor','observacion']] } },
   descripcion: { type: DataTypes.TEXT, allowNull: false },
   proceso_id: DataTypes.UUID,
   area_responsable_id: DataTypes.UUID,
   evidencia: DataTypes.TEXT,
   estado: { type: DataTypes.STRING(30), defaultValue: 'abierto',
-    validate: { isIn: [['abierto','en_proceso','cerrado']] } },
+    validate: { isIn: [['abierto','en_proceso','en_tratamiento','cerrado']] } },
   capa_id: DataTypes.UUID,
+  justificacion: DataTypes.TEXT,
   archivo_id: DataTypes.UUID,
   creado_por: DataTypes.UUID,
 }, { schema: S, tableName: 'hallazgos', timestamps: true, createdAt: 'creado_en', updatedAt: 'modificado_en' });
@@ -351,9 +358,6 @@ const Riesgo = sequelize.define('Riesgo', {
   modificado_por: DataTypes.UUID,
 }, {
   schema: S, tableName: 'riesgos', timestamps: true, createdAt: 'creado_en', updatedAt: 'modificado_en',
-  hooks: {
-    beforeSave: (riesgo) => { riesgo.nivel_riesgo = riesgo.probabilidad * riesgo.impacto; },
-  },
 });
 
 // ============================================================
@@ -408,13 +412,6 @@ const MedicionIndicador = sequelize.define('MedicionIndicador', {
   registrado_por: DataTypes.UUID,
 }, {
   schema: S, tableName: 'mediciones_indicador', timestamps: true, createdAt: 'creado_en', updatedAt: false,
-  hooks: {
-    beforeSave: (m) => {
-      if (m.valor_esperado && m.valor_esperado !== 0) {
-        m.cumplimiento = parseFloat(((m.valor_real / m.valor_esperado) * 100).toFixed(2));
-      } else { m.cumplimiento = 0; }
-    },
-  },
 });
 
 // ============================================================
@@ -526,6 +523,10 @@ FlujoDeTrabajo.belongsTo(Proceso, { foreignKey: 'proceso_id', as: 'proceso' });
 Proceso.hasMany(Documento, { foreignKey: 'proceso_id', as: 'documentos' });
 Documento.belongsTo(Proceso, { foreignKey: 'proceso_id', as: 'proceso' });
 
+Proceso.hasMany(Riesgo, { foreignKey: 'proceso_id', as: 'riesgos' });
+Proceso.hasMany(Indicador, { foreignKey: 'proceso_id', as: 'indicadores' });
+Proceso.hasMany(Hallazgo, { foreignKey: 'proceso_id', as: 'hallazgos' });
+
 Documento.hasMany(VersionDocumento, { foreignKey: 'documento_id', as: 'versiones' });
 VersionDocumento.belongsTo(Documento, { foreignKey: 'documento_id', as: 'documento' });
 
@@ -572,7 +573,7 @@ Usuario.hasMany(Notificacion, { foreignKey: 'usuario_id', as: 'notificaciones' }
 Notificacion.belongsTo(Usuario, { foreignKey: 'usuario_id', as: 'usuario' });
 
 // ── Asociaciones de responsable (modelos que tienen responsable_id) ──
-[Macroproceso, Proceso, Autoevaluacion, PlanAuditoria, Capa, Riesgo, Indicador, PlanMitigacion].forEach(Model => {
+[Macroproceso, Proceso, ActividadProceso, Autoevaluacion, Capa, Riesgo, PlanMitigacion].forEach(Model => {
   Model.belongsTo(Usuario, { foreignKey: 'responsable_id', as: 'responsable' });
 });
 

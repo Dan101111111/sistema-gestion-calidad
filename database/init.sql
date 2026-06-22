@@ -47,6 +47,7 @@ CREATE TABLE sgc.usuarios (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre              VARCHAR(100) NOT NULL,
     apellido            VARCHAR(100) NOT NULL,
+    codigo              VARCHAR(50) UNIQUE,
     email               VARCHAR(255) NOT NULL UNIQUE,
     password_hash       TEXT NOT NULL,
     rol                 VARCHAR(50) NOT NULL DEFAULT 'invitado',

@@ -10,7 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { encuestasApi } from '@/lib/api';
 import { formatDate, getErrorMessage, downloadBlob, truncate } from '@/lib/utils';
-import { Plus, Download, Send, BarChart2, Eye, Play, GripVertical } from 'lucide-react';
+import { Plus, Download, Send, BarChart2, Eye, Play, GripVertical, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -70,6 +70,7 @@ function GestionTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [preguntas, setPreguntas] = useState<any[]>([]);
   const [encuestaForm, setEncuestaForm] = useState({ codigo: '', titulo: '', descripcion: '', grupo_objetivo: 'todos', fecha_inicio: '', fecha_fin: '', anonima: false });
+  const [editId, setEditId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['encuestas-gestion', page],
@@ -81,6 +82,28 @@ function GestionTab() {
     onSuccess: () => { toast('success', 'Encuesta creada'); qc.invalidateQueries({ queryKey: ['encuestas-gestion'] }); setShowCreate(false); setPreguntas([]); },
     onError: (e) => toast('error', getErrorMessage(e)),
   });
+
+  const actualizarMut = useMutation({
+    mutationFn: (d: object) => encuestasApi.actualizar(editId!, d),
+    onSuccess: () => { toast('success', 'Encuesta actualizada'); qc.invalidateQueries({ queryKey: ['encuestas-gestion'] }); setShowCreate(false); },
+    onError: (e) => toast('error', getErrorMessage(e)),
+  });
+
+  const eliminarMut = useMutation({
+    mutationFn: (id: string) => encuestasApi.eliminar(id),
+    onSuccess: () => { toast('success', 'Encuesta eliminada'); qc.invalidateQueries({ queryKey: ['encuestas-gestion'] }); },
+    onError: (e) => toast('error', getErrorMessage(e)),
+  });
+
+  const abrirEdicion = async (id: string) => {
+    try {
+      const { data: e } = await encuestasApi.obtener(id).then(r => r.data);
+      setEncuestaForm({ codigo: e.codigo, titulo: e.titulo, descripcion: e.descripcion || '', grupo_objetivo: e.grupo_objetivo, fecha_inicio: e.fecha_inicio, fecha_fin: e.fecha_fin, anonima: e.anonima });
+      setPreguntas(e.preguntas || []);
+      setEditId(id);
+      setShowCreate(true);
+    } catch { toast('error', 'Error al cargar encuesta'); }
+  };
 
   const publicarMut = useMutation({
     mutationFn: (id: string) => encuestasApi.publicar(id),
@@ -103,12 +126,12 @@ function GestionTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreate(true)}>Nueva Encuesta</Button>
+        <Button size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => { setEditId(null); setEncuestaForm({ codigo: '', titulo: '', descripcion: '', grupo_objetivo: 'todos', fecha_inicio: '', fecha_fin: '', anonima: false }); setPreguntas([]); setShowCreate(true); }}>Nueva Encuesta</Button>
       </div>
 
       <Card>
         {isLoading ? <div className="p-5"><SkeletonCard /></div> : encuestas.length === 0 ? (
-          <EmptyState message="Sin encuestas registradas" action={<Button size="sm" onClick={() => setShowCreate(true)}>Crear Encuesta</Button>} />
+          <EmptyState message="Sin encuestas registradas" action={<Button size="sm" onClick={() => { setEditId(null); setEncuestaForm({ codigo: '', titulo: '', descripcion: '', grupo_objetivo: 'todos', fecha_inicio: '', fecha_fin: '', anonima: false }); setPreguntas([]); setShowCreate(true); }}>Crear Encuesta</Button>} />
         ) : (
           <>
             <Table>
@@ -124,9 +147,17 @@ function GestionTab() {
                     <Td>
                       <div className="flex justify-end gap-1">
                         {e.estado === 'borrador' && (
-                          <Button variant="ghost" size="sm" icon={<Play className="w-3.5 h-3.5" />}
-                            onClick={() => publicarMut.mutate(e.id)} title="Publicar">
-                          </Button>
+                          <>
+                            <Button variant="ghost" size="sm" icon={<Edit className="w-3.5 h-3.5" />}
+                              onClick={() => abrirEdicion(e.id)} title="Editar">
+                            </Button>
+                            <Button variant="ghost" size="sm" icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                              onClick={() => { if(confirm('¿Seguro que desea eliminar esta encuesta?')) eliminarMut.mutate(e.id); }} title="Eliminar">
+                            </Button>
+                            <Button variant="ghost" size="sm" icon={<Play className="w-3.5 h-3.5" />}
+                              onClick={() => publicarMut.mutate(e.id)} title="Publicar">
+                            </Button>
+                          </>
                         )}
                         <Button variant="ghost" size="sm" icon={<Download className="w-3.5 h-3.5" />}
                           onClick={() => downloadPDF(e.id)} title="PDF">
@@ -143,13 +174,13 @@ function GestionTab() {
       </Card>
 
       {/* Modal crear encuesta */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nueva Encuesta" size="xl">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={editId ? "Editar Encuesta" : "Nueva Encuesta"} size="xl">
         <div className="space-y-5">
           {/* Datos generales */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Datos Generales</h3>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Código*" placeholder="ENC-2024-001" value={encuestaForm.codigo} onChange={e => setEncuestaForm(f => ({ ...f, codigo: e.target.value }))} />
+              <Input label="Código*" placeholder="ENC-2024-001" value={encuestaForm.codigo} onChange={e => setEncuestaForm(f => ({ ...f, codigo: e.target.value }))} error={encuestaForm.codigo.length > 0 && encuestaForm.codigo.length < 3 ? "Mínimo 3 caracteres" : ""} />
               <Select label="Grupo Objetivo" value={encuestaForm.grupo_objetivo} onChange={e => setEncuestaForm(f => ({ ...f, grupo_objetivo: e.target.value }))}>
                 <option value="todos">Todos</option>
                 <option value="estudiantes">Estudiantes</option>
@@ -159,7 +190,7 @@ function GestionTab() {
               </Select>
             </div>
             <div className="mt-3">
-              <Input label="Título*" value={encuestaForm.titulo} onChange={e => setEncuestaForm(f => ({ ...f, titulo: e.target.value }))} />
+              <Input label="Título*" value={encuestaForm.titulo} onChange={e => setEncuestaForm(f => ({ ...f, titulo: e.target.value }))} error={encuestaForm.titulo.length > 0 && encuestaForm.titulo.length < 5 ? "Mínimo 5 caracteres" : ""} />
             </div>
             <div className="grid grid-cols-2 gap-4 mt-3">
               <Input label="Fecha Inicio" type="date" value={encuestaForm.fecha_inicio} onChange={e => setEncuestaForm(f => ({ ...f, fecha_inicio: e.target.value }))} />
@@ -204,11 +235,11 @@ function GestionTab() {
 
           <div className="flex justify-end pt-2">
             <Button
-              onClick={() => crearMut.mutate({ ...encuestaForm, preguntas })}
-              loading={crearMut.isPending}
-              disabled={!encuestaForm.codigo || !encuestaForm.titulo}
+              onClick={() => editId ? actualizarMut.mutate({ ...encuestaForm, preguntas }) : crearMut.mutate({ ...encuestaForm, preguntas })}
+              loading={crearMut.isPending || actualizarMut.isPending}
+              disabled={encuestaForm.codigo.length < 3 || encuestaForm.titulo.length < 5 || !encuestaForm.fecha_inicio || !encuestaForm.fecha_fin || preguntas.length === 0 || preguntas.some(p => p.texto.length < 5)}
             >
-              Crear Encuesta
+              {editId ? "Guardar Cambios" : "Crear Encuesta"}
             </Button>
           </div>
         </div>

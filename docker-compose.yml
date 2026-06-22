@@ -220,6 +220,7 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
       TZ: America/Lima
+      HOSTNAME: 0.0.0.0
     depends_on:
       backend:
         condition: service_healthy
@@ -227,7 +228,7 @@ services:
       sgc-network:
         ipv4_address: 172.20.0.21
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -257,6 +258,11 @@ services:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-n8n_encryption_key_2024_sgc}
       GENERIC_TIMEZONE: America/Lima
       TZ: America/Lima
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_EXPRESSIONS_ALLOWED_ENV_VARS: "SGC_API_URL,SMTP_FROM,FRONTEND_URL"
+      SGC_API_URL: http://backend:3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      SMTP_FROM: ${SMTP_FROM:-"SGC-UNT <sgc@unitru.edu.pe>"}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n-workflows:/workflows:ro

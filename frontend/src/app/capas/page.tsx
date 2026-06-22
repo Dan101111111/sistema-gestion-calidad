@@ -58,7 +58,7 @@ export default function CapasPage() {
     queryFn: () => capasApi.listar({ page, limit: 15, ...filters }).then(r => r.data),
   });
 
-  const { data: capaDetalle, isLoading: detLoading } = useQuery({
+  const { data: capaDetalle } = useQuery({
     queryKey: ['capa-detalle', selected?.id],
     queryFn: () => capasApi.obtener(selected.id).then(r => r.data.data),
     enabled: !!selected?.id,
@@ -72,7 +72,20 @@ export default function CapasPage() {
 
   const estadoMut = useMutation({
     mutationFn: (d: object) => capasApi.cambiarEstado(selected.id, d),
-    onSuccess: () => { toast('success', 'Estado actualizado'); qc.invalidateQueries({ queryKey: ['capas'] }); qc.invalidateQueries({ queryKey: ['capa-detalle'] }); setShowEstado(false); },
+    onSuccess: () => {
+      toast('success', 'Estado actualizado');
+      qc.invalidateQueries({ queryKey: ['capas'] });
+      qc.invalidateQueries({ queryKey: ['capa-detalle'] });
+      setShowEstado(false);
+      // Actualizar el estado del seleccionado localmente
+      setSelected((prev: any) => prev ? { ...prev, estado: (estadoMut.variables as any)?.nuevo_estado || prev.estado } : null);
+    },
+    onError: (e) => toast('error', getErrorMessage(e)),
+  });
+
+  const eliminarMut = useMutation({
+    mutationFn: (id: string) => capasApi.eliminar(id),
+    onSuccess: () => { toast('success', 'CAPA eliminada'); qc.invalidateQueries({ queryKey: ['capas'] }); setSelected(null); },
     onError: (e) => toast('error', getErrorMessage(e)),
   });
 
@@ -96,6 +109,8 @@ export default function CapasPage() {
 
   const capas = data?.data || [];
   const meta = data?.meta;
+
+  const isConfirmDisabled = estadoForm.nuevo_estado === 'rechazada' && !estadoForm.comentario.trim();
 
   return (
     <AppLayout title="Gestión CAPA">
@@ -192,24 +207,29 @@ export default function CapasPage() {
                   <CardContent className="space-y-3 text-sm">
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">Descripción</p>
-                      <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle?.descripcion}</p>
+                      <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle?.descripcion || selected.descripcion}</p>
                     </div>
-                    {capaDetalle?.causa_raiz && (
+                    {(capaDetalle?.causa_raiz || selected.causa_raiz) && (
                       <div>
                         <p className="text-xs text-gray-500 font-semibold uppercase">Causa Raíz</p>
-                        <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle.causa_raiz}</p>
+                        <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle?.causa_raiz || selected.causa_raiz}</p>
                       </div>
                     )}
                     <div>
                       <p className="text-xs text-gray-500 font-semibold uppercase">Acción Propuesta</p>
-                      <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle?.accion_propuesta}</p>
+                      <p className="text-gray-700 dark:text-gray-300 mt-0.5">{capaDetalle?.accion_propuesta || selected.accion_propuesta}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div><p className="text-xs text-gray-500">Responsable</p><p className="font-medium">{capaDetalle?.responsable?.nombre} {capaDetalle?.responsable?.apellido}</p></div>
-                      <div><p className="text-xs text-gray-500">Fecha Impl.</p><p className="font-medium">{formatDate(capaDetalle?.fecha_implementacion)}</p></div>
+                      <div><p className="text-xs text-gray-500">Responsable</p><p className="font-medium">{capaDetalle?.responsable ? `${capaDetalle.responsable.nombre} ${capaDetalle.responsable.apellido}` : '—'}</p></div>
+                      <div><p className="text-xs text-gray-500">Fecha Impl.</p><p className="font-medium">{formatDate(capaDetalle?.fecha_implementacion || selected.fecha_implementacion)}</p></div>
                     </div>
-                    {capaDetalle?.efectividad && (
-                      <div><p className="text-xs text-gray-500">Efectividad</p><Badge variant={capaDetalle.efectividad === 'efectiva' ? 'success' : capaDetalle.efectividad === 'parcialmente_efectiva' ? 'warning' : 'danger'}>{capaDetalle.efectividad.replace(/_/g,' ')}</Badge></div>
+                    {(capaDetalle?.efectividad || selected.efectividad) && (
+                      <div>
+                        <p className="text-xs text-gray-500">Efectividad</p>
+                        <Badge variant={(capaDetalle?.efectividad || selected.efectividad) === 'efectiva' ? 'success' : (capaDetalle?.efectividad || selected.efectividad) === 'parcialmente_efectiva' || (capaDetalle?.efectividad || selected.efectividad) === 'par' ? 'warning' : 'danger'}>
+                          {(capaDetalle?.efectividad || selected.efectividad).replace(/_/g,' ')}
+                        </Badge>
+                      </div>
                     )}
 
                     {canEdit && TRANSICIONES[capaDetalle?.estado || selected.estado] && (
@@ -222,6 +242,17 @@ export default function CapasPage() {
                         </Button>
                       </div>
                     )}
+
+                    {canEdit && (
+                      <Button size="sm" variant="danger" className="w-full mt-2" loading={eliminarMut.isPending}
+                        onClick={() => {
+                          if (confirm('¿Está seguro de que desea eliminar esta CAPA? Esta acción no se puede deshacer y fallará si tiene seguimientos.')) {
+                            eliminarMut.mutate(selected.id);
+                          }
+                        }}>
+                        Eliminar CAPA
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -229,14 +260,17 @@ export default function CapasPage() {
                 {capaDetalle?.seguimientos?.length > 0 && (
                   <Card>
                     <CardHeader><CardTitle>Seguimientos ({capaDetalle.seguimientos.length})</CardTitle></CardHeader>
-                    <CardContent className="space-y-3 py-3">
+                    <CardContent className="space-y-3 py-3 font-sans">
                       {capaDetalle.seguimientos.map((s: any) => (
-                        <div key={s.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm">
+                        <div key={s.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm border border-gray-100 dark:border-gray-700">
                           <div className="flex items-center justify-between mb-1">
                             <ProgressBar value={s.avance_porcentaje} color={s.avance_porcentaje >= 80 ? 'green' : s.avance_porcentaje >= 50 ? 'yellow' : 'red'} />
                           </div>
                           {s.observaciones && <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{s.observaciones}</p>}
-                          <p className="text-xs text-gray-400 mt-1">{formatDate(s.creado_en, 'dd/MM/yyyy HH:mm')}</p>
+                          <div className="flex justify-between items-center mt-2 text-[10px] text-gray-400">
+                            <span>Registrado por: {s.registrador ? `${s.registrador.nombre} ${s.registrador.apellido}` : '—'}</span>
+                            <span>{formatDate(s.creado_en, 'dd/MM/yyyy HH:mm')}</span>
+                          </div>
                         </div>
                       ))}
                     </CardContent>
@@ -263,14 +297,21 @@ export default function CapasPage() {
             <Select label="Efectividad" value={estadoForm.efectividad} onChange={e => setEstadoForm(f => ({ ...f, efectividad: e.target.value }))}>
               <option value="">Seleccionar...</option>
               <option value="efectiva">Efectiva</option>
-              <option value="parcialmente_efectiva">Parcialmente Efectiva</option>
+              <option value="parcial">Parcial</option>
               <option value="no_efectiva">No Efectiva</option>
             </Select>
           )}
-          <Textarea label="Comentario" value={estadoForm.comentario} onChange={e => setEstadoForm(f => ({ ...f, comentario: e.target.value }))} />
+          <Textarea 
+            label={estadoForm.nuevo_estado === 'rechazada' ? 'Comentario (Obligatorio)*' : 'Comentario'} 
+            value={estadoForm.comentario} 
+            onChange={e => setEstadoForm(f => ({ ...f, comentario: e.target.value }))}
+            placeholder={estadoForm.nuevo_estado === 'rechazada' ? 'Debe detallar la justificación del rechazo...' : 'Ingrese comentarios u observaciones...'}
+          />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowEstado(false)}>Cancelar</Button>
-            <Button size="sm" onClick={() => estadoMut.mutate(estadoForm)} loading={estadoMut.isPending}>Confirmar</Button>
+            <Button size="sm" onClick={() => estadoMut.mutate(estadoForm)} loading={estadoMut.isPending} disabled={isConfirmDisabled}>
+              Confirmar
+            </Button>
           </div>
         </div>
       </Modal>

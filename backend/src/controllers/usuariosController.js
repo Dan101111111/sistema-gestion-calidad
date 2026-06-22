@@ -22,6 +22,7 @@ exports.listar = async (req, res, next) => {
       { nombre: { [Op.iLike]: `%${q}%` } },
       { apellido: { [Op.iLike]: `%${q}%` } },
       { email: { [Op.iLike]: `%${q}%` } },
+      { codigo: { [Op.iLike]: `%${q}%` } },
     ];
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -52,13 +53,19 @@ exports.obtener = async (req, res, next) => {
 
 exports.crear = async (req, res, next) => {
   try {
-    const { nombre, apellido, email, password, rol, facultad, escuela, telefono } = req.body;
+    const { codigo, nombre, apellido, email, password, rol, facultad, escuela, telefono } = req.body;
 
     const existe = await Usuario.findOne({ where: { email: email.toLowerCase() } });
     if (existe) return next(createError(409, 'El email ya está registrado', 'EMAIL_DUPLICATE'));
 
+    if (codigo) {
+      const existeCodigo = await Usuario.findOne({ where: { codigo } });
+      if (existeCodigo) return next(createError(409, 'El código ya está asignado a otro usuario', 'CODE_DUPLICATE'));
+    }
+
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await Usuario.create({
+      codigo: codigo || null,
       nombre, apellido, email: email.toLowerCase(), password_hash,
       rol: rol || 'invitado', facultad, escuela, telefono,
       creado_por: req.userId,
@@ -73,10 +80,15 @@ exports.actualizar = async (req, res, next) => {
     const user = await Usuario.findByPk(req.params.id);
     if (!user) return next(createError(404, 'Usuario no encontrado'));
 
-    const { nombre, apellido, rol, facultad, escuela, telefono } = req.body;
+    const { codigo, nombre, apellido, rol, facultad, escuela, telefono } = req.body;
     req.datosAnteriores = userPublic(user);
 
-    await user.update({ nombre, apellido, rol, facultad, escuela, telefono, modificado_por: req.userId });
+    if (codigo !== undefined && codigo !== user.codigo) {
+      const existeCodigo = await Usuario.findOne({ where: { codigo } });
+      if (existeCodigo) return next(createError(409, 'El código ya está asignado a otro usuario', 'CODE_DUPLICATE'));
+    }
+
+    await user.update({ codigo, nombre, apellido, rol, facultad, escuela, telefono, modificado_por: req.userId });
     res.json({ data: userPublic(user) });
   } catch (err) { next(err); }
 };

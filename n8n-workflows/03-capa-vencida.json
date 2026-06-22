@@ -2,11 +2,24 @@
   "name": "SGC - CAPA Vencida (Cron Diario)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * 1-5" }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
       "name": "Cron Diario 8am",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        -192,
+        448
+      ],
+      "id": "c2aaed54-aa73-4ba6-ab52-fc3c4cf4eca7"
     },
     {
       "parameters": {
@@ -18,20 +31,49 @@
       "name": "Obtener CAPAs Vencidas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [
+        32,
+        448
+      ],
+      "id": "6815f747-4aa9-43fb-bfb6-3c0b51a0bde3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "glvbxV4NdOJTZwYa",
+          "name": "SGC-API-Key"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true },
-          "conditions": [{ "leftValue": "={{ $json.meta.total }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }]
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.meta.total }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
         },
         "options": {}
       },
       "name": "Hay CAPAs Vencidas?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        256,
+        448
+      ],
+      "id": "21397d7a-6933-4ba9-b75d-1f50de9e6746"
     },
     {
       "parameters": {
@@ -43,30 +85,125 @@
       "name": "Obtener Gestores",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [900, 200]
+      "position": [
+        464,
+        336
+      ],
+      "id": "2d40df89-38f6-48a5-960e-571e25e912ac",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "glvbxV4NdOJTZwYa",
+          "name": "SGC-API-Key"
+        }
+      }
     },
     {
       "parameters": {
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.email }}",
         "subject": "=🔴 CAPAs Vencidas — Requieren Acción Inmediata — SGC-UNT",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#C8102E;color:white;padding:20px}.body{background:white;padding:30px}table{width:100%;border-collapse:collapse}th{background:#003366;color:white;padding:8px;text-align:left}td{padding:8px;border-bottom:1px solid #eee}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px}</style></head><body><div class=\"header\"><h2>🔴 Reporte Diario: CAPAs Vencidas</h2></div><div class=\"body\"><p>Estimado/a Gestor de Calidad,</p><p>El reporte diario del SGC-UNT indica que existen <strong>{{ $('Obtener CAPAs Vencidas').item.json.meta.total }}</strong> CAPAs vencidas que requieren atención:</p><table><tr><th>Código</th><th>Descripción</th><th>Responsable</th><th>Venció</th><th>Estado</th></tr>{{ $('Obtener CAPAs Vencidas').item.json.data.slice(0,20).map(c => '<tr><td>'+c.codigo+'</td><td>'+c.descripcion.substring(0,60)+'...</td><td>'+(c.responsable ? c.responsable.nombre+' '+c.responsable.apellido : '-')+'</td><td>'+c.fecha_implementacion+'</td><td>'+c.estado+'</td></tr>').join('') }}</table>{{ $('Obtener CAPAs Vencidas').item.json.meta.total > 20 ? '<p><em>... y ' + ($('Obtener CAPAs Vencidas').item.json.meta.total - 20) + ' más. Ver reporte completo en el sistema.</em></p>' : '' }}<br><a href=\"{{ $env.FRONTEND_URL }}/capas?vencidas=true\" class=\"btn\">Ver CAPAs Vencidas</a></div><div class=\"footer\">SGC-UNT v2.0 · Reporte automático diario · Universidad Nacional de Trujillo</div></body></html>",
         "options": {}
       },
       "name": "Email Reporte CAPAs",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 200]
+      "position": [
+        848,
+        336
+      ],
+      "id": "4576357d-edfa-4a4e-9442-d30eae6bf565",
+      "webhookId": "bde21795-f35c-4c21-be10-2618838bd6cd",
+      "credentials": {
+        "smtp": {
+          "id": "pGN5wTFcVy0hXxLO",
+          "name": "SGC-SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => (item.json.data || []).map(x => ({ json: x })));"
+      },
+      "name": "Desempaquetar Gestores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        336
+      ],
+      "id": "972bcec4-2308-475f-b7ae-cae1462ec720"
     }
   ],
+  "pinData": {},
   "connections": {
-    "Cron Diario 8am": { "main": [[{ "node": "Obtener CAPAs Vencidas", "type": "main", "index": 0 }]] },
-    "Obtener CAPAs Vencidas": { "main": [[{ "node": "Hay CAPAs Vencidas?", "type": "main", "index": 0 }]] },
-    "Hay CAPAs Vencidas?": { "main": [[{ "node": "Obtener Gestores", "type": "main", "index": 0 }], []] },
-    "Obtener Gestores": { "main": [[{ "node": "Email Reporte CAPAs", "type": "main", "index": 0 }]] }
+    "Cron Diario 8am": {
+      "main": [
+        [
+          {
+            "node": "Obtener CAPAs Vencidas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener CAPAs Vencidas": {
+      "main": [
+        [
+          {
+            "node": "Hay CAPAs Vencidas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay CAPAs Vencidas?": {
+      "main": [
+        [
+          {
+            "node": "Obtener Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Gestores": {
+      "main": [
+        [
+          {
+            "node": "Desempaquetar Gestores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Desempaquetar Gestores": {
+      "main": [
+        [
+          {
+            "node": "Email Reporte CAPAs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
-  "versionId": "1"
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4324d4db-322f-46d2-bf2f-9e785f8b013e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d51953c334268fda948ded813acd2dba1168f61459f328e8d40ab3db5b115bf"
+  },
+  "nodeGroups": [],
+  "id": "Iw1iTIQRCTCL8FS9",
+  "tags": []
 }

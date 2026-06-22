@@ -6,12 +6,14 @@ import { api, setAuthToken, clearAuthToken } from '@/lib/api';
 // ─── Types ───────────────────────────────────────────────────
 export interface User {
   id: string;
+  codigo?: string;
   nombre: string;
   apellido: string;
   email: string;
   rol: 'admin' | 'gestor_calidad' | 'auditor' | 'docente' | 'estudiante' | 'egresado' | 'invitado';
   facultad?: string;
   escuela?: string;
+  telefono?: string;
 }
 
 interface AuthState {

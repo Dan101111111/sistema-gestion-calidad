@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Table, Thead, Tbody, Th, Td, 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
 import { formatDatetime, getErrorMessage, fromNow } from '@/lib/utils';
-import { Users, Settings, Activity, Plus, UserCheck, UserX, Key, RefreshCw, Save } from 'lucide-react';
+import { Users, Settings, Activity, Plus, UserCheck, UserX, Key, RefreshCw, Save, Edit } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -66,7 +66,8 @@ function UsuariosTab() {
   const [q, setQ] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
-  const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', rol: 'docente', facultad: '', escuela: '' });
+  const [showEditDetails, setShowEditDetails] = useState<any>(null);
+  const [form, setForm] = useState({ codigo: '', nombre: '', apellido: '', email: '', password: '', rol: 'docente', facultad: '', escuela: '', telefono: '' });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['admin-usuarios', page, q],
@@ -75,7 +76,12 @@ function UsuariosTab() {
 
   const crearMut = useMutation({
     mutationFn: (d: object) => adminApi.usuarios.crear(d),
-    onSuccess: () => { toast('success', 'Usuario creado'); qc.invalidateQueries({ queryKey: ['admin-usuarios'] }); setShowCreate(false); },
+    onSuccess: () => {
+      toast('success', 'Usuario creado');
+      qc.invalidateQueries({ queryKey: ['admin-usuarios'] });
+      setForm({ codigo: '', nombre: '', apellido: '', email: '', password: '', rol: 'docente', facultad: '', escuela: '', telefono: '' });
+      setShowCreate(false);
+    },
     onError: (e) => toast('error', getErrorMessage(e)),
   });
 
@@ -94,6 +100,16 @@ function UsuariosTab() {
   const resetPwdMut = useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) => adminApi.usuarios.resetPassword(id, password),
     onSuccess: () => { toast('success', 'Contraseña restablecida'); setEditUser(null); },
+    onError: (e) => toast('error', getErrorMessage(e)),
+  });
+
+  const editDetailsMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: object }) => adminApi.usuarios.actualizar(id, data),
+    onSuccess: () => {
+      toast('success', 'Datos de usuario actualizados');
+      qc.invalidateQueries({ queryKey: ['admin-usuarios'] });
+      setShowEditDetails(null);
+    },
     onError: (e) => toast('error', getErrorMessage(e)),
   });
 
@@ -118,10 +134,11 @@ function UsuariosTab() {
         {isLoading ? <div className="p-5"><SkeletonCard /></div> : usuarios.length === 0 ? <EmptyState message="Sin usuarios" /> : (
           <>
             <Table>
-              <Thead><tr><Th>Nombre</Th><Th>Email</Th><Th>Rol</Th><Th>Facultad</Th><Th>Estado</Th><Th>Último Acceso</Th><Th className="text-right">Acciones</Th></tr></Thead>
+              <Thead><tr><Th>Código</Th><Th>Nombre</Th><Th>Email</Th><Th>Rol</Th><Th>Facultad</Th><Th>Estado</Th><Th>Último Acceso</Th><Th className="text-right">Acciones</Th></tr></Thead>
               <Tbody>
                 {usuarios.map((u: any) => (
                   <Tr key={u.id}>
+                    <Td><span className="font-mono text-xs text-gray-500">{u.codigo || '—'}</span></Td>
                     <Td>
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-unt-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
@@ -150,6 +167,10 @@ function UsuariosTab() {
                     <Td><span className="text-xs text-gray-400">{u.ultimo_acceso ? fromNow(u.ultimo_acceso) : 'Nunca'}</span></Td>
                     <Td>
                       <div className="flex justify-end gap-1">
+                        <button onClick={() => setShowEditDetails(u)} title="Editar datos"
+                          className="p-1.5 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
                         <button onClick={() => toggleMut.mutate(u.id)} title={u.activo ? 'Desactivar' : 'Activar'}
                           className="p-1.5 rounded text-gray-400 hover:text-unt-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                           {u.activo ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
@@ -169,27 +190,80 @@ function UsuariosTab() {
         )}
       </Card>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Nuevo Usuario" size="md">
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); setForm({ codigo: '', nombre: '', apellido: '', email: '', password: '', rol: 'docente', facultad: '', escuela: '', telefono: '' }); }} title="Nuevo Usuario" size="md">
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Código" placeholder="Código institucional" value={form.codigo} onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))} />
+            <Input label="Email*" type="email" placeholder="correo@unitru.edu.pe" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="Nombre*" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             <Input label="Apellido*" value={form.apellido} onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))} />
           </div>
-          <Input label="Email*" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           <Input label="Contraseña*" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}>
               {ROLES.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
             </Select>
             <Input label="Facultad" value={form.facultad} onChange={e => setForm(f => ({ ...f, facultad: e.target.value }))} />
+            <Input label="Escuela" value={form.escuela} onChange={e => setForm(f => ({ ...f, escuela: e.target.value }))} />
           </div>
-          <div className="flex justify-end pt-2"><Button onClick={() => crearMut.mutate(form)} loading={crearMut.isPending}>Crear Usuario</Button></div>
+          <Input label="Teléfono" placeholder="+51 999 999 999" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+          <div className="flex justify-end pt-2">
+            <Button onClick={() => crearMut.mutate(form)} loading={crearMut.isPending}>Crear Usuario</Button>
+          </div>
         </div>
+      </Modal>
+
+      <Modal open={!!showEditDetails} onClose={() => setShowEditDetails(null)} title={`Editar Usuario: ${showEditDetails?.email}`} size="md">
+        {showEditDetails && (
+          <EditUserForm
+            initialValues={showEditDetails}
+            onSubmit={(data) => editDetailsMut.mutate({ id: showEditDetails.id, data })}
+            loading={editDetailsMut.isPending}
+            roles={ROLES}
+          />
+        )}
       </Modal>
 
       <Modal open={!!editUser} onClose={() => setEditUser(null)} title={`Restablecer contraseña: ${editUser?.email}`} size="sm">
         <ResetPwdForm onSubmit={(pwd) => resetPwdMut.mutate({ id: editUser.id, password: pwd })} loading={resetPwdMut.isPending} />
       </Modal>
+    </div>
+  );
+}
+
+function EditUserForm({ initialValues, onSubmit, loading, roles }: { initialValues: any; onSubmit: (data: any) => void; loading: boolean; roles: string[] }) {
+  const [form, setForm] = useState({
+    codigo: initialValues.codigo || '',
+    nombre: initialValues.nombre || '',
+    apellido: initialValues.apellido || '',
+    rol: initialValues.rol || 'docente',
+    facultad: initialValues.facultad || '',
+    escuela: initialValues.escuela || '',
+    telefono: initialValues.telefono || ''
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="Código" value={form.codigo} onChange={e => setForm(f => ({ ...f, codigo: e.target.value }))} />
+        <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}>
+          {roles.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="Nombre*" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+        <Input label="Apellido*" value={form.apellido} onChange={e => setForm(f => ({ ...f, apellido: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="Facultad" value={form.facultad} onChange={e => setForm(f => ({ ...f, facultad: e.target.value }))} />
+        <Input label="Escuela" value={form.escuela} onChange={e => setForm(f => ({ ...f, escuela: e.target.value }))} />
+      </div>
+      <Input label="Teléfono" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => onSubmit(form)} loading={loading}>Guardar Cambios</Button>
+      </div>
     </div>
   );
 }

@@ -18,21 +18,39 @@ interface NavItem {
   badge?: number;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/documentos', label: 'Documentos', icon: FileText },
-  { href: '/procesos', label: 'Mapa de Procesos', icon: GitBranch },
-  { href: '/acreditacion', label: 'Acreditación', icon: Award, roles: ['admin', 'gestor_calidad', 'auditor'] },
-  { href: '/auditorias', label: 'Auditorías', icon: ClipboardCheck, roles: ['admin', 'gestor_calidad', 'auditor'] },
-  { href: '/capas', label: 'CAPA', icon: Shield },
-  { href: '/riesgos', label: 'Riesgos', icon: AlertTriangle },
-  { href: '/indicadores', label: 'Indicadores', icon: BarChart2 },
-  { href: '/encuestas', label: 'Encuestas', icon: MessageSquare },
-  { href: '/notificaciones', label: 'Notificaciones', icon: Bell },
-];
+interface NavSection {
+  header: string;
+  items: NavItem[];
+}
 
-const ADMIN_ITEMS: NavItem[] = [
-  { href: '/admin', label: 'Administración', icon: Settings, roles: ['admin'] },
+const NAV_SECTIONS: NavSection[] = [
+  {
+    header: 'GESTIÓN',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/documentos', label: 'Documentos', icon: FileText },
+      { href: '/procesos', label: 'Mapa de Procesos', icon: GitBranch },
+      { href: '/capas', label: 'CAPA', icon: Shield },
+      { href: '/riesgos', label: 'Riesgos', icon: AlertTriangle },
+    ],
+  },
+  {
+    header: 'MONITOREO',
+    items: [
+      { href: '/indicadores', label: 'Indicadores', icon: BarChart2 },
+      { href: '/encuestas', label: 'Encuestas', icon: MessageSquare },
+      { href: '/notificaciones', label: 'Notificaciones', icon: Bell },
+    ],
+  },
+  {
+    header: 'ADMIN',
+    items: [
+      { href: '/acreditacion', label: 'Acreditación', icon: Award, roles: ['admin', 'gestor_calidad', 'auditor'] },
+      { href: '/auditorias', label: 'Auditorías', icon: ClipboardCheck, roles: ['admin', 'gestor_calidad', 'auditor'] },
+      { href: '/admin', label: 'Administración', icon: Settings, roles: ['admin'] },
+      { href: '/admin/tipos-documento', label: 'Tipos de Documento', icon: BookOpen, roles: ['admin'] },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -45,11 +63,21 @@ export function Sidebar({ noLeidas = 0 }: SidebarProps) {
   const pathname = usePathname();
   const { user, hasRole } = useAuth();
 
-  const visibleItems = NAV_ITEMS.filter(item => !item.roles || hasRole(...(item.roles as any[])));
-  const visibleAdmin = ADMIN_ITEMS.filter(item => !item.roles || hasRole(...(item.roles as any[])));
+  const visibleSections = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => !item.roles || hasRole(...(item.roles as any[]))),
+  })).filter(section => section.items.length > 0);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
+      {/* Collapse toggle - TOP */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex items-center justify-center h-12 border-b border-white/10 text-blue-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+      >
+        {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+      </button>
+
       {/* Logo */}
       <div className={cn(
         'flex items-center gap-3 px-4 py-4 border-b border-white/10',
@@ -67,68 +95,56 @@ export function Sidebar({ noLeidas = 0 }: SidebarProps) {
       </div>
 
       {/* Nav items */}
-      <nav className="flex-1 overflow-y-auto py-4 space-y-0.5 px-2">
-        {visibleItems.map(item => {
-          const Icon = item.icon;
-          const active = pathname.startsWith(item.href);
-          const isNotif = item.href === '/notificaciones';
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        {visibleSections.map((section, sectionIndex) => (
+          <div key={section.header}>
+            {/* Section header */}
+            {!collapsed && (
+              <div className="px-3 pt-6 pb-2">
+                <p className="text-[10px] uppercase font-semibold tracking-wider text-blue-300">
+                  {section.header}
+                </p>
+              </div>
+            )}
+            {collapsed && sectionIndex > 0 && (
+              <div className="my-4 mx-3 h-px bg-white/10" />
+            )}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative',
-                active
-                  ? 'bg-white/20 text-white shadow-sm'
-                  : 'text-blue-100 hover:bg-white/10 hover:text-white',
-                collapsed ? 'justify-center' : ''
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span className="flex-1">{item.label}</span>}
-              {isNotif && noLeidas > 0 && (
-                <span className={cn(
-                  'bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center',
-                  collapsed ? 'absolute -top-1 -right-1 w-5 h-5 text-[10px]' : 'w-5 h-5 text-[10px]'
-                )}>
-                  {noLeidas > 9 ? '9+' : noLeidas}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-
-        {visibleAdmin.length > 0 && (
-          <>
-            <div className={cn('mt-4 mb-2', collapsed ? 'px-2' : 'px-3')}>
-              {!collapsed && <p className="text-blue-300 text-xs uppercase font-semibold tracking-wider">Admin</p>}
-              {collapsed && <div className="h-px bg-white/10" />}
-            </div>
-            {visibleAdmin.map(item => {
+            {/* Section items */}
+            {section.items.map(item => {
               const Icon = item.icon;
               const active = pathname.startsWith(item.href);
+              const isNotif = item.href === '/notificaciones';
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
-                    active ? 'bg-white/20 text-white' : 'text-blue-100 hover:bg-white/10 hover:text-white',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative',
+                    active
+                      ? 'bg-white/20 text-white shadow-sm'
+                      : 'text-blue-100 hover:bg-white/10 hover:text-white',
                     collapsed ? 'justify-center' : ''
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  <Icon className="w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  {!collapsed && <span className="flex-1">{item.label}</span>}
+                  {isNotif && noLeidas > 0 && (
+                    <span className={cn(
+                      'bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse-slow',
+                      collapsed ? 'absolute -top-1 -right-1 w-5 h-5 text-[10px]' : 'w-5 h-5 text-[10px]'
+                    )}>
+                      {noLeidas > 9 ? '9+' : noLeidas}
+                    </span>
+                  )}
                 </Link>
               );
             })}
-          </>
-        )}
+          </div>
+        ))}
       </nav>
 
       {/* User info */}
@@ -148,14 +164,6 @@ export function Sidebar({ noLeidas = 0 }: SidebarProps) {
           )}
         </div>
       )}
-
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="hidden lg:flex items-center justify-center h-8 border-t border-white/10 text-blue-300 hover:text-white hover:bg-white/10 transition-colors"
-      >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
     </div>
   );
 

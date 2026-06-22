@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script para generar certificados SSL auto-firmados para desarrollo
-# Se ejecuta automáticamente al iniciar el contenedor de Nginx
+# Se ejecuta automÃ¡ticamente al iniciar el contenedor de Nginx
 
 CERT_DIR="/etc/nginx/certs"
 CERT_FILE="$CERT_DIR/sgc-unt.crt"
@@ -22,7 +22,7 @@ if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
         -addext "subjectAltName=DNS:localhost,DNS:sgc-unt.local,IP:127.0.0.1"
     echo "[nginx-init] Certificados generados en $CERT_DIR"
 else
-    echo "[nginx-init] Certificados SSL ya existen, omitiendo generación."
+    echo "[nginx-init] Certificados SSL ya existen, omitiendo generaciÃ³n."
 fi
 
 chmod 600 "$KEY_FILE"

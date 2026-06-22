@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { X, AlertTriangle, CheckCircle, Info, XCircle, Loader2 } from 'lucide-react';
 
@@ -23,13 +23,13 @@ export function CardContent({ children, className }: React.HTMLAttributes<HTMLDi
 
 // ─── Badge ───────────────────────────────────────────────────
 const BADGE_VARIANTS: Record<string, string> = {
-  default: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  primary: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  danger: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  info: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  default: 'bg-gray-100/60 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300 border border-gray-300/30 dark:border-gray-700/30',
+  primary: 'bg-blue-100/50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.15)]',
+  success: 'bg-green-100/50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.15)]',
+  warning: 'bg-yellow-100/50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.15)]',
+  danger: 'bg-red-100/50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.15)]',
+  info: 'bg-cyan-100/50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border border-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.15)]',
+  purple: 'bg-purple-100/50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.15)]',
 };
 
 export function Badge({ children, variant = 'default', className }: { children: React.ReactNode; variant?: string; className?: string }) {
@@ -210,29 +210,69 @@ interface KpiCardProps {
   title: string; value: number | string; icon: React.ReactNode;
   color?: string; subtitle?: string; loading?: boolean;
 }
+
+function useCountUp(end: number, duration: number = 800) {
+  const [count, setCount] = useState(0);
+  const startTime = React.useRef<number | undefined>(undefined);
+  const animationFrame = React.useRef<number | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (typeof end !== 'number') return;
+    
+    const animate = (currentTime: number) => {
+      if (!startTime.current) startTime.current = currentTime;
+      const elapsed = currentTime - startTime.current;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function: easeOutQuart
+      const easeOutQuart = (t: number): number => 1 - Math.pow(1 - t, 4);
+      const easedProgress = easeOutQuart(progress);
+      
+      setCount(Math.round(easedProgress * end));
+      
+      if (progress < 1) {
+        animationFrame.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationFrame.current) {
+        cancelAnimationFrame(animationFrame.current);
+      }
+    };
+  }, [end, duration]);
+
+  return typeof end === 'number' ? count : end;
+}
+
 export function KpiCard({ title, value, icon, color = 'blue', subtitle, loading }: KpiCardProps) {
+  const animatedValue = useCountUp(typeof value === 'number' ? value : 0);
+  const displayValue = typeof value === 'number' ? animatedValue : value;
+  
   const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-    red: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
-    green: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
-    yellow: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400',
-    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400',
-    orange: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400',
+    blue: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light',
+    red: 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive-light',
+    green: 'bg-success/10 text-success dark:bg-success/20 dark:text-success-light',
+    yellow: 'bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning-light',
+    purple: 'bg-accent/10 text-accent dark:bg-accent/20 dark:text-accent-light',
+    orange: 'bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning-light',
   };
 
   return (
-    <Card className="p-5 hover:shadow-md transition-shadow">
+    <Card className="p-5 hover:shadow-glow-md transition-all duration-300 hover:-translate-y-1 animate-fade-in">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
+          <p className="text-sm text-muted-foreground font-medium">{title}</p>
           {loading ? (
             <Skeleton className="h-9 w-20 mt-1" />
           ) : (
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
+            <p className="text-3xl font-bold text-foreground mt-1 tracking-tight">{displayValue}</p>
           )}
-          {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </div>
-        <div className={cn('p-3 rounded-xl', colors[color] || colors.blue)}>
+        <div className={cn('p-3 rounded-xl transition-transform duration-200 group-hover:scale-110', colors[color] || colors.blue)}>
           {icon}
         </div>
       </div>
@@ -292,10 +332,11 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, danger
 // ─── Status Badge ────────────────────────────────────────────
 const ESTADO_BADGE: Record<string, { label: string; variant: string }> = {
   borrador: { label: 'Borrador', variant: 'default' },
-  en_revision: { label: 'En Revisión', variant: 'info' },
+  en_revision: { label: 'En Revisión', variant: 'warning' },
   aprobado: { label: 'Aprobado', variant: 'success' },
   rechazado: { label: 'Rechazado', variant: 'danger' },
-  archivado: { label: 'Archivado', variant: 'default' },
+  archivado: { label: 'Archivado', variant: 'primary' },
+  obsoleto: { label: 'Obsoleto', variant: 'danger' },
   activo: { label: 'Activo', variant: 'success' },
   mitigado: { label: 'Mitigado', variant: 'info' },
   aceptado: { label: 'Aceptado', variant: 'warning' },
@@ -304,14 +345,17 @@ const ESTADO_BADGE: Record<string, { label: string; variant: string }> = {
   en_implementacion: { label: 'En Implementación', variant: 'info' },
   implementada: { label: 'Implementada', variant: 'primary' },
   verificada: { label: 'Verificada', variant: 'warning' },
-  cerrada: { label: 'Cerrada', variant: 'success' },
+  cerrada: { label: 'Cerrada', variant: 'purple' },
   rechazada: { label: 'Rechazada', variant: 'danger' },
   planificado: { label: 'Planificado', variant: 'default' },
   en_ejecucion: { label: 'En Ejecución', variant: 'info' },
+  ejecutado: { label: 'Ejecutado', variant: 'success' },
+  cerrado: { label: 'Cerrado', variant: 'purple' },
   completado: { label: 'Completado', variant: 'success' },
   cancelado: { label: 'Cancelado', variant: 'danger' },
   publicada: { label: 'Publicada', variant: 'success' },
   en_proceso: { label: 'En Proceso', variant: 'info' },
+  en_tratamiento: { label: 'En Tratamiento', variant: 'info' },
   abierto: { label: 'Abierto', variant: 'warning' },
 };
 

@@ -13,9 +13,11 @@ const capas = require('../controllers/capasController');
 const riesgos = require('../controllers/riesgosController');
 const indicadores = require('../controllers/indicadoresController');
 const main = require('../controllers/mainController');
+const tiposDocumento = require('../controllers/tiposDocumentoController');
 const { validar, authSchemas, usuarioSchemas, documentoSchemas,
         macroprocesoSchemas, procesoSchemas, capaSchemas, riesgoSchemas,
-        indicadorSchemas, encuestaSchemas, auditoriaSchemas, acreditacionSchemas } = require('../validators');
+        indicadorSchemas, encuestaSchemas, auditoriaSchemas, acreditacionSchemas,
+        tipoDocumentoSchemas } = require('../validators');
 
 // ============================================================
 // AUTH (público + rate limit estricto)
@@ -33,7 +35,7 @@ router.delete('/auth/sesiones/:id', authenticate, auth.revocarSesion);
 // ============================================================
 // USUARIOS (solo admin)
 // ============================================================
-router.get('/usuarios', authenticate, isAdmin, usuarios.listar);
+router.get('/usuarios', authenticate, isAdminOrGestor, usuarios.listar);
 router.get('/usuarios/perfil', authenticate, usuarios.miPerfil);
 router.put('/usuarios/perfil', authenticate, usuarios.actualizarPerfil);
 router.get('/usuarios/:id', authenticate, isAdmin, usuarios.obtener);
@@ -46,13 +48,13 @@ router.post('/usuarios/:id/reset-password', authenticate, isAdmin, usuarios.rese
 // ============================================================
 // DOCUMENTOS
 // ============================================================
-router.get('/documentos', authenticate, docs.listar);
-router.get('/documentos/:id', authenticate, docs.obtener);
-router.post('/documentos', authenticate, isAdminOrGestor, validar(documentoSchemas.crear), auditMiddleware('documentos','CREATE'), docs.crear);
-router.put('/documentos/:id', authenticate, isAdminOrGestor, auditMiddleware('documentos','UPDATE'), docs.actualizar);
-router.delete('/documentos/:id', authenticate, isAdmin, auditMiddleware('documentos','DELETE'), docs.eliminar);
-router.patch('/documentos/:id/estado', authenticate, isAdminOrGestor, validar(documentoSchemas.cambiarEstado), docs.cambiarEstado);
-router.get('/documentos/:id/versiones', authenticate, docs.versiones);
+router.get('/documentos', authenticate, authorize('admin', 'gestor_calidad', 'auditor', 'docente'), docs.listar);
+router.get('/documentos/:id', authenticate, authorize('admin', 'gestor_calidad', 'auditor', 'docente'), docs.obtener);
+router.post('/documentos', authenticate, authorize('admin', 'gestor_calidad', 'docente'), validar(documentoSchemas.crear), auditMiddleware('documentos','CREATE'), docs.crear);
+router.put('/documentos/:id', authenticate, authorize('admin', 'gestor_calidad', 'docente'), auditMiddleware('documentos','UPDATE'), docs.actualizar);
+router.delete('/documentos/:id', authenticate, authorize('admin', 'gestor_calidad', 'docente'), auditMiddleware('documentos','DELETE'), docs.eliminar);
+router.patch('/documentos/:id/estado', authenticate, authorize('admin', 'gestor_calidad', 'docente'), validar(documentoSchemas.cambiarEstado), docs.cambiarEstado);
+router.get('/documentos/:id/versiones', authenticate, authorize('admin', 'gestor_calidad', 'auditor', 'docente'), docs.versiones);
 router.get('/documentos/reporte/pdf', authenticate, isAdminOrGestor, docs.reportePDF);
 
 // ============================================================
@@ -61,13 +63,20 @@ router.get('/documentos/reporte/pdf', authenticate, isAdminOrGestor, docs.report
 router.get('/macroprocesos', authenticate, main.listarMacroprocesos);
 router.post('/macroprocesos', authenticate, isAdminOrGestor, auditMiddleware('macroprocesos','CREATE'), main.crearMacroproceso);
 router.put('/macroprocesos/:id', authenticate, isAdminOrGestor, auditMiddleware('macroprocesos','UPDATE'), main.actualizarMacroproceso);
+router.delete('/macroprocesos/:id', authenticate, isAdminOrGestor, auditMiddleware('macroprocesos','DELETE'), main.eliminarMacroproceso);
 
 router.get('/procesos', authenticate, main.listarProcesos);
 router.get('/procesos/:id', authenticate, main.obtenerProceso);
 router.post('/procesos', authenticate, isAdminOrGestor, auditMiddleware('procesos','CREATE'), main.crearProceso);
 router.put('/procesos/:id', authenticate, isAdminOrGestor, auditMiddleware('procesos','UPDATE'), main.actualizarProceso);
+router.delete('/procesos/:id', authenticate, isAdminOrGestor, auditMiddleware('procesos','DELETE'), main.eliminarProceso);
+
 router.post('/procesos/:procesoId/actividades', authenticate, isAdminOrGestor, main.crearActividad);
 router.put('/actividades/:id', authenticate, isAdminOrGestor, main.actualizarActividad);
+router.delete('/actividades/:id', authenticate, isAdminOrGestor, main.eliminarActividad);
+router.post('/procesos/:procesoId/actividades/reordenar', authenticate, isAdminOrGestor, main.reordenarActividades);
+router.post('/procesos/:procesoId/flujo', authenticate, isAdminOrGestor, main.guardarFlujoProceso);
+
 router.get('/procesos/reporte/pdf', authenticate, isAdminOrGestor, main.reportePDFProcesos);
 
 // ============================================================
@@ -89,11 +98,13 @@ router.get('/autoevaluaciones/:id/reporte/pdf', authenticate, isAdminOrGestor, m
 router.get('/planes-auditoria', authenticate, main.listarPlanes);
 router.post('/planes-auditoria', authenticate, authorize('admin','gestor_calidad','auditor'), auditMiddleware('planes_auditoria','CREATE'), main.crearPlan);
 router.put('/planes-auditoria/:id', authenticate, authorize('admin','gestor_calidad','auditor'), main.actualizarPlan);
+router.delete('/planes-auditoria/:id', authenticate, authorize('admin','gestor_calidad','auditor'), auditMiddleware('planes_auditoria','DELETE'), main.eliminarPlan);
 router.get('/planes-auditoria/:id/reporte/pdf', authenticate, main.reportePDFAuditoria);
 
 router.get('/hallazgos', authenticate, main.listarHallazgos);
 router.post('/hallazgos', authenticate, authorize('admin','gestor_calidad','auditor'), auditMiddleware('hallazgos','CREATE'), main.crearHallazgo);
 router.put('/hallazgos/:id', authenticate, authorize('admin','gestor_calidad','auditor'), main.actualizarHallazgo);
+router.delete('/hallazgos/:id', authenticate, authorize('admin','gestor_calidad','auditor'), auditMiddleware('hallazgos','DELETE'), main.eliminarHallazgo);
 
 // ============================================================
 // CAPA
@@ -102,6 +113,7 @@ router.get('/capas', authenticate, capas.listar);
 router.get('/capas/:id', authenticate, capas.obtener);
 router.post('/capas', authenticate, isAdminOrGestor, validar(capaSchemas.crear), auditMiddleware('capas','CREATE'), capas.crear);
 router.put('/capas/:id', authenticate, isAdminOrGestor, auditMiddleware('capas','UPDATE'), capas.actualizar);
+router.delete('/capas/:id', authenticate, isAdminOrGestor, auditMiddleware('capas','DELETE'), capas.eliminar);
 router.patch('/capas/:id/estado', authenticate, isAdminOrGestor, validar(capaSchemas.cambiarEstado), capas.cambiarEstado);
 router.post('/capas/:id/seguimientos', authenticate, validar(capaSchemas.seguimiento), capas.agregarSeguimiento);
 router.get('/capas/reporte/pdf', authenticate, isAdminOrGestor, capas.reportePDF);
@@ -136,6 +148,8 @@ router.get('/indicadores/reporte/pdf', authenticate, isAdminOrGestor, indicadore
 router.get('/encuestas', authenticate, main.listarEncuestas);
 router.get('/encuestas/:id', authenticate, main.obtenerEncuesta);
 router.post('/encuestas', authenticate, isAdminOrGestor, validar(encuestaSchemas.crear), main.crearEncuesta);
+router.put('/encuestas/:id', authenticate, isAdminOrGestor, validar(encuestaSchemas.actualizar), main.actualizarEncuesta);
+router.delete('/encuestas/:id', authenticate, isAdminOrGestor, main.eliminarEncuesta);
 router.patch('/encuestas/:id/publicar', authenticate, isAdminOrGestor, main.publicarEncuesta);
 router.post('/encuestas/:id/responder', authenticate, main.responderEncuesta);
 router.get('/encuestas/:id/resultados', authenticate, isAdminOrGestor, main.resultadosEncuesta);
@@ -178,5 +192,13 @@ router.get('/dashboard/graficos', authenticate, main.dashboardGraficos);
 // ============================================================
 router.get('/configuracion', authenticate, isAdmin, main.obtenerConfiguracion);
 router.put('/configuracion', authenticate, isAdmin, main.actualizarConfiguracion);
+
+// ============================================================
+// TIPOS DE DOCUMENTO (solo admin para escrituras)
+// ============================================================
+router.get('/tipos-documento', authenticate, tiposDocumento.listar);
+router.post('/tipos-documento', authenticate, isAdmin, validar(tipoDocumentoSchemas.crear), auditMiddleware('tipos_documento', 'CREATE'), tiposDocumento.crear);
+router.put('/tipos-documento/:id', authenticate, isAdmin, validar(tipoDocumentoSchemas.actualizar), auditMiddleware('tipos_documento', 'UPDATE'), tiposDocumento.actualizar);
+router.delete('/tipos-documento/:id', authenticate, isAdmin, auditMiddleware('tipos_documento', 'DELETE'), tiposDocumento.eliminar);
 
 module.exports = router;

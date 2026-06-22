@@ -2,11 +2,24 @@
   "name": "SGC - Documento Por Vencer (30 dias)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 6 * * 1" }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
       "name": "Cron Lunes 6am",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        -368,
+        720
+      ],
+      "id": "b13bc6a9-54a6-4c6f-9d79-457518bfb45d"
     },
     {
       "parameters": {
@@ -18,7 +31,17 @@
       "name": "Obtener Docs Aprobados",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [460, 300]
+      "position": [
+        -192,
+        720
+      ],
+      "id": "e68e6242-e3a8-48ca-8fa3-c3afa25d337b",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "glvbxV4NdOJTZwYa",
+          "name": "SGC-API-Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -27,41 +50,127 @@
       "name": "Filtrar y Agrupar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        80,
+        720
+      ],
+      "id": "35bbfcff-4486-4ca2-bd54-599076538b60"
     },
     {
       "parameters": {
         "conditions": {
-          "conditions": [{ "leftValue": "={{ $json.responsable }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
-        }
+          "conditions": [
+            {
+              "leftValue": "={{ $json.responsable }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
       },
       "name": "Tiene Responsable?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        304,
+        720
+      ],
+      "id": "fdf8cbad-8900-4ff9-b506-3cd488e411c9"
     },
     {
       "parameters": {
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.responsable.email }}",
         "subject": "=📋 Documentos próximos a vencer (30 días) — SGC-UNT",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#003366;color:white;padding:20px}.body{background:white;padding:30px}table{width:100%;border-collapse:collapse}th{background:#003366;color:white;padding:8px}td{padding:8px;border-bottom:1px solid #eee}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>📋 Documentos Por Vencer</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.responsable.nombre }} {{ $json.responsable.apellido }}</strong>,</p><p>Los siguientes documentos bajo su responsabilidad vencerán en los próximos <strong>30 días</strong>:</p><table><tr><th>Código</th><th>Título</th><th>Tipo</th><th>Vencimiento</th></tr>{{ $json.docs.map(d => '<tr><td>'+d.codigo+'</td><td>'+d.titulo+'</td><td>'+(d.tipo ? d.tipo.nombre : '-')+'</td><td>'+d.fecha_vigencia_fin+'</td></tr>').join('') }}</table><p>Por favor, revise y renueve o archive estos documentos según corresponda.</p><br><a href=\"{{ $env.FRONTEND_URL }}/documentos\" class=\"btn\">Gestionar Documentos</a></div><div class=\"footer\">SGC-UNT v2.0 · Alerta semanal · Universidad Nacional de Trujillo</div></body></html>",
         "options": {}
       },
       "name": "Email Alerta Docs",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 200]
+      "position": [
+        512,
+        608
+      ],
+      "id": "3727f300-2e4c-4de2-81fe-57493842c1e9",
+      "webhookId": "e35939d9-4dd0-45e2-af17-370833900ed6",
+      "credentials": {
+        "smtp": {
+          "id": "pGN5wTFcVy0hXxLO",
+          "name": "SGC-SMTP"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Cron Lunes 6am": { "main": [[{ "node": "Obtener Docs Aprobados", "type": "main", "index": 0 }]] },
-    "Obtener Docs Aprobados": { "main": [[{ "node": "Filtrar y Agrupar", "type": "main", "index": 0 }]] },
-    "Filtrar y Agrupar": { "main": [[{ "node": "Tiene Responsable?", "type": "main", "index": 0 }]] },
-    "Tiene Responsable?": { "main": [[{ "node": "Email Alerta Docs", "type": "main", "index": 0 }], []] }
+    "Cron Lunes 6am": {
+      "main": [
+        [
+          {
+            "node": "Obtener Docs Aprobados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Docs Aprobados": {
+      "main": [
+        [
+          {
+            "node": "Filtrar y Agrupar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar y Agrupar": {
+      "main": [
+        [
+          {
+            "node": "Tiene Responsable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Responsable?": {
+      "main": [
+        [
+          {
+            "node": "Email Alerta Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
-  "versionId": "1"
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "0dc79991-f314-42b5-9f78-36c17a758a43",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d51953c334268fda948ded813acd2dba1168f61459f328e8d40ab3db5b115bf"
+  },
+  "nodeGroups": [],
+  "id": "QDlXAsodm2zW74tw",
+  "tags": []
 }

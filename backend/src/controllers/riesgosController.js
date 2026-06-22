@@ -60,10 +60,14 @@ exports.crear = async (req, res, next) => {
     const existe = await Riesgo.findOne({ where: { codigo } });
     if (existe) return next(createError(409, 'El código de riesgo ya existe'));
 
+    const camposGuardar = ['codigo', 'nombre', 'descripcion', 'tipo', 'proceso_id', 'probabilidad', 'impacto', 'responsable_id', 'estado', 'creado_por'];
     const riesgo = await Riesgo.create({
       codigo, nombre, descripcion, tipo, proceso_id, probabilidad, impacto,
       responsable_id, estado: 'activo', creado_por: req.userId,
-    });
+    }, { fields: camposGuardar });
+
+    // Recargar para obtener el nivel_riesgo generado por PostgreSQL
+    await riesgo.reload();
 
     // Alerta si nivel crítico (>= 17)
     if (riesgo.nivel_riesgo >= 17) {
@@ -89,7 +93,13 @@ exports.actualizar = async (req, res, next) => {
     if (!riesgo) return next(createError(404, 'Riesgo no encontrado'));
 
     req.datosAnteriores = riesgo.toJSON();
-    await riesgo.update({ ...req.body, modificado_por: req.userId });
+    const { codigo, nombre, descripcion, tipo, proceso_id, probabilidad, impacto, responsable_id, estado } = req.body;
+    await riesgo.update(
+      { codigo, nombre, descripcion, tipo, proceso_id, probabilidad, impacto, responsable_id, estado, modificado_por: req.userId },
+      { fields: ['codigo', 'nombre', 'descripcion', 'tipo', 'proceso_id', 'probabilidad', 'impacto', 'responsable_id', 'estado', 'modificado_por'] }
+    );
+
+    await riesgo.reload();
 
     if (riesgo.nivel_riesgo >= 17) {
       await n8nService.trigger('riesgo-critico', { riesgoId: riesgo.id, nivel: riesgo.nivel_riesgo });

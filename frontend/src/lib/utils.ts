@@ -10,8 +10,16 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(date: string | Date | undefined, fmt = 'dd/MM/yyyy') {
   if (!date) return '—';
   try {
-    const d = typeof date === 'string' ? parseISO(date) : date;
-    return format(d, fmt, { locale: es });
+    if (typeof date === 'string') {
+      const datePart = date.includes('T') ? date.split('T')[0] : date;
+      const [year, month, day] = datePart.split('-');
+      if (year && month && day) {
+        const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
+        return format(d, fmt, { locale: es });
+      }
+      return format(parseISO(date), fmt, { locale: es });
+    }
+    return format(date, fmt, { locale: es });
   } catch { return '—'; }
 }
 

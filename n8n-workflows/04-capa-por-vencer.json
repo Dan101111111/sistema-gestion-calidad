@@ -2,11 +2,24 @@
   "name": "SGC - CAPA Por Vencer (5 dias)",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 7 * * 1-5" }] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1-5"
+            }
+          ]
+        }
+      },
       "name": "Cron 7am Lunes-Viernes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [
+        -1104,
+        112
+      ],
+      "id": "36cf23bc-bcdf-4bbc-a5d8-d6562dab0641"
     },
     {
       "parameters": {
@@ -15,7 +28,11 @@
       "name": "Calcular Fechas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        -880,
+        112
+      ],
+      "id": "a139a56a-89fb-41f9-8ed7-bd892b77312c"
     },
     {
       "parameters": {
@@ -27,7 +44,17 @@
       "name": "Obtener CAPAs Activas",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [680, 300]
+      "position": [
+        -656,
+        112
+      ],
+      "id": "072207c2-16f7-4523-ac44-51e951bd743d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "glvbxV4NdOJTZwYa",
+          "name": "SGC-API-Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -36,22 +63,47 @@
       "name": "Filtrar Por Vencer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        -448,
+        112
+      ],
+      "id": "f2b44bf8-d346-45a2-829b-0424f7477ed2"
     },
     {
       "parameters": {
         "conditions": {
-          "conditions": [{ "leftValue": "={{ $json.responsable_id }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
-        }
+          "conditions": [
+            {
+              "leftValue": "={{ $json.responsable_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
       },
       "name": "Tiene Responsable?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        -224,
+        112
+      ],
+      "id": "27d50310-224b-4435-80ea-306564624d95"
     },
     {
       "parameters": {
-        "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios/={{ $json.responsable_id }}",
+        "url": "={{ $env.SGC_API_URL }}/api/v1/usuarios/{{ $json.responsable_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -59,32 +111,125 @@
       "name": "Obtener Responsable",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [1340, 200]
+      "position": [
+        0,
+        0
+      ],
+      "id": "0187ff8e-478a-43ba-b5fc-7af702d4dade",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "glvbxV4NdOJTZwYa",
+          "name": "SGC-API-Key"
+        }
+      }
     },
     {
       "parameters": {
         "fromEmail": "={{ $env.SMTP_FROM }}",
         "toEmail": "={{ $json.data.email }}",
         "subject": "=⏰ Recordatorio: CAPA vence en 5 días — {{ $('Filtrar Por Vencer').item.json.codigo }}",
-        "emailType": "html",
-        "message": "=<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#F7B731;color:#333;padding:20px}.body{background:white;padding:30px}.alert{background:#fff3cd;border-left:4px solid #F7B731;padding:12px;margin:12px 0}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>⏰ CAPA Próxima a Vencer</h2></div><div class=\"body\"><p>Estimado/a <strong>{{ $json.data.nombre }} {{ $json.data.apellido }}</strong>,</p><div class=\"alert\">La siguiente CAPA bajo su responsabilidad vencerá en los próximos <strong>5 días</strong>.</div><table><tr><td><strong>Código:</strong></td><td>{{ $('Filtrar Por Vencer').item.json.codigo }}</td></tr><tr><td><strong>Descripción:</strong></td><td>{{ $('Filtrar Por Vencer').item.json.descripcion }}</td></tr><tr><td><strong>Fecha Límite:</strong></td><td>{{ $('Filtrar Por Vencer').item.json.fecha_implementacion }}</td></tr><tr><td><strong>Estado Actual:</strong></td><td>{{ $('Filtrar Por Vencer').item.json.estado }}</td></tr></table><p>Por favor, tome las acciones necesarias para cerrar o actualizar esta CAPA antes de su vencimiento.</p><br><a href=\"{{ $env.FRONTEND_URL }}/capas\" class=\"btn\">Gestionar CAPA</a></div><div class=\"footer\">SGC-UNT v2.0 · Recordatorio automático · Universidad Nacional de Trujillo</div></body></html>",
+        "emailFormat": "html",
+        "html": "=={{ '<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif}.header{background:#F7B731;color:#333;padding:20px}.body{background:white;padding:30px}.alert{background:#fff3cd;border-left:4px solid #F7B731;padding:12px;margin:12px 0}.footer{background:#f8f8f8;padding:15px;font-size:11px;color:#888;text-align:center}.btn{background:#003366;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block}</style></head><body><div class=\"header\"><h2>⏰ CAPA Próxima a Vencer</h2></div><div class=\"body\"><p>Estimado/a <strong>' + $json.data.nombre + ' ' + $json.data.apellido + '</strong>,</p><div class=\"alert\">La siguiente CAPA bajo su responsabilidad vencerá en los próximos <strong>5 días</strong>.</div><table><tr><td><strong>Código:</strong></td><td>' + $('Filtrar Por Vencer').item.json.codigo + '</td></tr><tr><td><strong>Descripción:</strong></td><td>' + $('Filtrar Por Vencer').item.json.descripcion + '</td></tr><tr><td><strong>Fecha Límite:</strong></td><td>' + $('Filtrar Por Vencer').item.json.fecha_implementacion + '</td></tr><tr><td><strong>Estado Actual:</strong></td><td>' + $('Filtrar Por Vencer').item.json.estado + '</td></tr></table><p>Por favor, tome las acciones necesarias para cerrar o actualizar esta CAPA antes de su vencimiento.</p><br><a href=\"' + $env.FRONTEND_URL + '/capas\" class=\"btn\">Gestionar CAPA</a></div><div class=\"footer\">SGC-UNT v2.0 · Recordatorio automático · Universidad Nacional de Trujillo</div></body></html>' }}",
         "options": {}
       },
       "name": "Email Recordatorio",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1560, 200]
+      "position": [
+        224,
+        0
+      ],
+      "id": "ed9452fe-1683-4b4e-952f-bbcbd15c9ae0",
+      "webhookId": "8c605afe-5860-4085-b4ed-086f3cb91902",
+      "credentials": {
+        "smtp": {
+          "id": "pGN5wTFcVy0hXxLO",
+          "name": "SGC-SMTP"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Cron 7am Lunes-Viernes": { "main": [[{ "node": "Calcular Fechas", "type": "main", "index": 0 }]] },
-    "Calcular Fechas": { "main": [[{ "node": "Obtener CAPAs Activas", "type": "main", "index": 0 }]] },
-    "Obtener CAPAs Activas": { "main": [[{ "node": "Filtrar Por Vencer", "type": "main", "index": 0 }]] },
-    "Filtrar Por Vencer": { "main": [[{ "node": "Tiene Responsable?", "type": "main", "index": 0 }]] },
-    "Tiene Responsable?": { "main": [[{ "node": "Obtener Responsable", "type": "main", "index": 0 }], []] },
-    "Obtener Responsable": { "main": [[{ "node": "Email Recordatorio", "type": "main", "index": 0 }]] }
+    "Cron 7am Lunes-Viernes": {
+      "main": [
+        [
+          {
+            "node": "Calcular Fechas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Fechas": {
+      "main": [
+        [
+          {
+            "node": "Obtener CAPAs Activas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener CAPAs Activas": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Por Vencer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Por Vencer": {
+      "main": [
+        [
+          {
+            "node": "Tiene Responsable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Responsable?": {
+      "main": [
+        [
+          {
+            "node": "Obtener Responsable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Responsable": {
+      "main": [
+        [
+          {
+            "node": "Email Recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": true,
-  "settings": { "executionOrder": "v1" },
-  "versionId": "1"
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7433dd44-0eb1-4189-8ea6-720b8361aee6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d51953c334268fda948ded813acd2dba1168f61459f328e8d40ab3db5b115bf"
+  },
+  "nodeGroups": [],
+  "id": "q8vLeKJEmNboSZTv",
+  "tags": []
 }
