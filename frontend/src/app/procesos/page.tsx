@@ -10,17 +10,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { procesosApi, adminApi } from '@/lib/api';
 import {
   Plus, GitBranch, ChevronRight, ChevronDown, Download, Layers,
-  Edit, Trash, ArrowUp, ArrowDown, Users, Eye, Code, Play, RefreshCw, AlertCircle
+  Edit, Trash, ArrowUp, ArrowDown, Users, Eye, Code, Play, RefreshCw, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAuth } from '@/context/AuthContext';
 import { cn, getErrorMessage, downloadBlob } from '@/lib/utils';
+import { MapaProcesosGrafico } from '@/components/MapaProcesosGrafico';
 
 // Colores Glowing para los tipos de macroproceso
 const TIPO_COLORS: Record<string, string> = {
-  estrategico: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5 dark:bg-blue-500/10 shadow-[0_0_8px_rgba(59,130,246,0.15)]',
-  misional: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.15)]',
-  apoyo: 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
+  estrategico: 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 dark:bg-amber-500/10 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
+  misional: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5 dark:bg-blue-500/10 shadow-[0_0_8px_rgba(59,130,246,0.15)]',
+  apoyo: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 dark:bg-emerald-500/10 shadow-[0_0_8px_rgba(16,185,129,0.15)]',
   evaluacion: 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5 dark:bg-purple-500/10 shadow-[0_0_8px_rgba(168,85,247,0.15)]',
 };
 
@@ -38,6 +39,11 @@ export default function ProcesosPage() {
   const canEdit = hasRole('admin', 'gestor_calidad');
 
   const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
+  const [expandidosGrupos, setExpandidosGrupos] = useState<Record<string, boolean>>({
+    estrategico: true,
+    misional: true,
+    apoyo: true,
+  });
   const [procesoSel, setProcesoSel] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -194,7 +200,7 @@ export default function ProcesosPage() {
     }
   };
 
-  const toggleExpand = (id: string) => setExpandidos(e => ({ ...e, [id]: !e[id] }));
+  const toggleExpand = (id: string) => setExpandidos(e => (e[id] ? {} : { [id]: true }));
 
   // Reordenar actividades con botones subir / bajar
   const handleMoveActivity = (idx: number, direction: 'up' | 'down') => {
@@ -211,6 +217,29 @@ export default function ProcesosPage() {
     // Mapear a arreglo de IDs ordenados
     const ids = list.map((a: any) => a.id);
     reordenarActMut.mutate({ procesoId: procesoSel.id, ids });
+  };
+
+  const handleSelectFromGraph = (macroId: string | number) => {
+    const macroInfo = macrosData?.find((m: any) => m.id === macroId);
+    let groupId = macroInfo?.tipo;
+    if (groupId === 'evaluacion') groupId = 'estrategico';
+    
+    if (groupId) {
+      setExpandidosGrupos({ [groupId]: true });
+    }
+    setExpandidos({ [macroId]: true });
+    setTimeout(() => {
+      document.getElementById(`macro-${macroId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  };
+
+  const toggleExpandGrupo = (id: string) => setExpandidosGrupos(e => (e[id] ? {} : { [id]: true }));
+
+  const handleSelectProceso = (proc: any) => {
+    setProcesoSel(proc);
+    setTimeout(() => {
+      document.getElementById('detalle-proceso-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
   };
 
   // Filtrado de macroprocesos por barra de búsqueda
@@ -272,12 +301,33 @@ export default function ProcesosPage() {
               ) : macros.length === 0 ? (
                 <EmptyState message="No se encontraron macroprocesos" description="Prueba con otros términos de búsqueda." />
               ) : (
-                macros.map((macro: any) => {
-                  const colorClass = TIPO_COLORS[macro.tipo] || 'bg-gray-100 dark:bg-gray-800 text-gray-600';
-                  const isExpanded = expandidos[macro.id] || searchTerm.length > 0;
+                [
+                  { id: 'estrategico', title: 'Estratégicos', border: 'border-amber-500' },
+                  { id: 'misional', title: 'Misionales', border: 'border-blue-500' },
+                  { id: 'apoyo', title: 'Apoyo', border: 'border-emerald-500' }
+                ].map(group => {
+                  const groupMacros = macros.filter((m: any) => m.tipo === group.id || (group.id === 'estrategico' && m.tipo === 'evaluacion')).sort((a: any, b: any) => a.codigo.localeCompare(b.codigo, undefined, { numeric: true }));
+                  if (groupMacros.length === 0) return null;
+
+                  const isGroupExpanded = expandidosGrupos[group.id] || searchTerm.length > 0;
+
                   return (
-                    <Card key={macro.id} className="overflow-hidden border border-gray-200/80 dark:border-gray-800/80 transition-all hover:shadow-md dark:shadow-black/20">
-                      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50/50 dark:bg-gray-900/30">
+                    <div key={group.id} className="space-y-3 mb-6">
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50 p-1.5 rounded-lg transition-colors -ml-1.5"
+                        onClick={() => toggleExpandGrupo(group.id)}
+                      >
+                        {isGroupExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                        <h3 className={`flex-1 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 pl-2 border-l-4 ${group.border}`}>
+                          Procesos {group.title}
+                        </h3>
+                      </div>
+                      {isGroupExpanded && groupMacros.map((macro: any) => {
+                        const colorClass = TIPO_COLORS[macro.tipo] || 'bg-gray-100 dark:bg-gray-800 text-gray-600';
+                        const isExpanded = expandidos[macro.id] || searchTerm.length > 0;
+                        return (
+                          <Card id={`macro-${macro.id}`} key={macro.id} className="overflow-hidden border border-gray-200/80 dark:border-gray-800/80 transition-all hover:shadow-md dark:shadow-black/20 scroll-mt-6">
+                            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50/50 dark:bg-gray-900/30">
                         <div
                           className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
                           onClick={() => toggleExpand(macro.id)}
@@ -333,7 +383,7 @@ export default function ProcesosPage() {
                                   'group flex items-center justify-between px-5 py-2.5 cursor-pointer hover:bg-blue-500/5 transition-all duration-150',
                                   procesoSel?.id === proc.id && 'bg-blue-500/10 dark:bg-blue-500/15 border-l-2 border-blue-500'
                                 )}
-                                onClick={() => setProcesoSel(proc)}
+                                onClick={() => handleSelectProceso(proc)}
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <GitBranch className={cn('w-3.5 h-3.5 text-gray-400', procesoSel?.id === proc.id && 'text-blue-500')} />
@@ -382,41 +432,71 @@ export default function ProcesosPage() {
                       )}
                     </Card>
                   );
+                })}
+                    </div>
+                  );
                 })
               )}
             </div>
           </div>
 
           {/* Panel derecho — Detalle del proceso seleccionado */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 scroll-mt-6" id="detalle-proceso-container">
             {!procesoSel ? (
-              <Card className="h-full flex items-center justify-center min-h-[450px] border-dashed border-2 border-gray-200 dark:border-gray-800">
-                <EmptyState
-                  message="Seleccione un proceso"
-                  description="Explore la estructura en el panel izquierdo y seleccione un proceso para visualizar sus actividades, flujos e indicadores asociados."
-                />
-              </Card>
+              <div className="h-full animate-in fade-in duration-500">
+                <MapaProcesosGrafico macrosData={macrosData || []} onSelectMacro={handleSelectFromGraph} />
+              </div>
             ) : (
               <div className="space-y-6">
+                <div className="flex justify-between items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-2 rounded-xl shadow-sm">
+                  <Button variant="ghost" size="sm" onClick={() => setProcesoSel(null)} icon={<ArrowLeft className="w-4 h-4" />}>
+                    Regresar al Mapa de Procesos
+                  </Button>
+                </div>
                 {/* Info Proceso */}
-                <Card className="border border-gray-200/80 dark:border-gray-800/80 shadow-md">
-                  <CardHeader className="pb-4 bg-gray-50/50 dark:bg-gray-900/30">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-2.5 py-0.5 rounded font-bold">
-                            {procesoDetalle?.codigo || procesoSel.codigo}
-                          </span>
-                          <Badge variant={ESTADO_VARIANTS[procesoDetalle?.estado || procesoSel.estado] || 'default'}>
-                            {procesoDetalle?.estado || procesoSel.estado}
-                          </Badge>
-                          {procesoDetalle?.macroproceso && (
-                            <span className="text-xs text-gray-400">
-                              (Pertenece a {procesoDetalle.macroproceso.nombre})
-                            </span>
-                          )}
-                        </div>
-                        <CardTitle className="text-xl mt-1.5">{procesoDetalle?.nombre || procesoSel.nombre}</CardTitle>
+                {(() => {
+                  const tipo = procesoDetalle?.macroproceso?.tipo || 'estrategico';
+                  const headerStyles: Record<string, string> = {
+                    estrategico: 'bg-gradient-to-r from-amber-500/10 to-transparent border-b border-amber-200/50 dark:border-amber-900/50',
+                    misional: 'bg-gradient-to-r from-blue-500/10 to-transparent border-b border-blue-200/50 dark:border-blue-900/50',
+                    apoyo: 'bg-gradient-to-r from-emerald-500/10 to-transparent border-b border-emerald-200/50 dark:border-emerald-900/50',
+                    evaluacion: 'bg-gradient-to-r from-purple-500/10 to-transparent border-b border-purple-200/50 dark:border-purple-900/50'
+                  };
+                  const borderStyles: Record<string, string> = {
+                    estrategico: 'border-l-4 border-l-amber-500',
+                    misional: 'border-l-4 border-l-blue-500',
+                    apoyo: 'border-l-4 border-l-emerald-500',
+                    evaluacion: 'border-l-4 border-l-purple-500'
+                  };
+                  const badgeStyles: Record<string, string> = {
+                    estrategico: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
+                    misional: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400',
+                    apoyo: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
+                    evaluacion: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400'
+                  };
+
+                  return (
+                    <>
+                      <Card className={`border border-gray-200/80 dark:border-gray-800/80 shadow-md ${borderStyles[tipo] || borderStyles.estrategico}`}>
+                      <CardHeader className={`pb-4 ${headerStyles[tipo] || headerStyles.estrategico}`}>
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono text-xs px-2.5 py-0.5 rounded font-bold ${badgeStyles[tipo] || badgeStyles.estrategico}`}>
+                                {procesoDetalle?.codigo || procesoSel.codigo}
+                              </span>
+                              <Badge variant={ESTADO_VARIANTS[procesoDetalle?.estado || procesoSel.estado] || 'default'}>
+                                {procesoDetalle?.estado || procesoSel.estado}
+                              </Badge>
+                              {procesoDetalle?.macroproceso && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 font-medium">
+                                  <Layers className="w-3.5 h-3.5" /> Pertenece a {procesoDetalle.macroproceso.nombre}
+                                </span>
+                              )}
+                            </div>
+                            <CardTitle className="text-xl mt-2 font-bold text-gray-900 dark:text-white">
+                              {procesoDetalle?.nombre || procesoSel.nombre}
+                            </CardTitle>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -597,6 +677,9 @@ export default function ProcesosPage() {
                     )}
                   </CardContent>
                 </Card>
+                    </>
+                  );
+                })()}
 
                 {/* Grid Inferior de Referencias y Vinculaciones */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
