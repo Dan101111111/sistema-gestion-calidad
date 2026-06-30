@@ -72,7 +72,7 @@ export default function CapasPage() {
   const [showSeguimiento, setShowSeguimiento] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [estadoForm, setEstadoForm] = useState({ nuevo_estado: '', comentario: '', efectividad: '' });
-  const [seguimientoForm, setSeguimientoForm] = useState({ avance_porcentaje: 0, observaciones: '' });
+  const [seguimientoForm, setSeguimientoForm] = useState({ avance_porcentaje: 25, observaciones: '' });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['capas', page, filters],
@@ -89,7 +89,7 @@ export default function CapasPage() {
     queryKey: ['usuarios'],
     queryFn: () => adminApi.usuarios.listar({ limit: 100 }).then(r => r.data),
   });
-  const usuarios = usuariosData?.data || [];
+  const usuarios = Array.isArray(usuariosData?.data) ? usuariosData.data : [];
 
   const crearMut = useMutation({
     mutationFn: (d: object) => capasApi.crear(d),
@@ -139,7 +139,7 @@ export default function CapasPage() {
     verificada: ['cerrada', 'en_implementacion'],
   };
 
-  const capas = data?.data || [];
+  const capas = Array.isArray(data?.data) ? data.data : [];
   const meta = data?.meta;
 
   const isConfirmDisabled = estadoForm.nuevo_estado === 'rechazada' && !estadoForm.comentario.trim();
@@ -298,12 +298,7 @@ export default function CapasPage() {
                         <Button size="sm" onClick={() => { setEstadoForm({ nuevo_estado: TRANSICIONES[capaDetalle?.estado || selected.estado]?.[0] || '', comentario: '', efectividad: '' }); setShowEstado(true); }}>
                           Cambiar Estado
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          // Pre-fill with last known avance
-                          const lastSeg = capaDetalle?.seguimientos?.[0];
-                          setSeguimientoForm({ avance_porcentaje: lastSeg?.avance_porcentaje ?? 0, observaciones: '' });
-                          setShowSeguimiento(true);
-                        }}>
+                        <Button size="sm" variant="outline" onClick={() => { setSeguimientoForm({ avance_porcentaje: 25, observaciones: '' }); setShowSeguimiento(true); }}>
                           + Seguimiento
                         </Button>
                       </div>
@@ -319,7 +314,7 @@ export default function CapasPage() {
                 </Card>
 
                 {/* Seguimientos */}
-                {capaDetalle?.seguimientos?.length > 0 && (
+                {Array.isArray(capaDetalle?.seguimientos) && capaDetalle.seguimientos.length > 0 && (
                   <Card>
                     <CardHeader><CardTitle>Seguimientos ({capaDetalle.seguimientos.length})</CardTitle></CardHeader>
                     <CardContent className="space-y-3 py-3 font-sans">
@@ -353,7 +348,7 @@ export default function CapasPage() {
       <Modal open={showEstado} onClose={() => setShowEstado(false)} title="Cambiar Estado CAPA" size="sm">
         <div className="space-y-4">
           <Select label="Nuevo Estado" value={estadoForm.nuevo_estado} onChange={e => setEstadoForm(f => ({ ...f, nuevo_estado: e.target.value }))}>
-            {(TRANSICIONES[selected?.estado] || []).map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+            {(Array.isArray(TRANSICIONES[selected?.estado]) ? TRANSICIONES[selected?.estado] : []).map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
           </Select>
           {estadoForm.nuevo_estado === 'cerrada' && (
             <Select label="Efectividad" value={estadoForm.efectividad} onChange={e => setEstadoForm(f => ({ ...f, efectividad: e.target.value }))}>
@@ -386,54 +381,17 @@ export default function CapasPage() {
       {/* Modal seguimiento */}
       <Modal open={showSeguimiento} onClose={() => setShowSeguimiento(false)} title="Registrar Seguimiento" size="sm">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avance actual</label>
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  placeholder="0"
-                  value={seguimientoForm.avance_porcentaje === 0 ? '' : seguimientoForm.avance_porcentaje}
-                  onChange={e => {
-                    if (e.target.value === '') {
-                      setSeguimientoForm(f => ({ ...f, avance_porcentaje: 0 }));
-                      return;
-                    }
-                    const num = parseInt(e.target.value.replace(/\D/g, ''), 10);
-                    if (!isNaN(num)) {
-                      setSeguimientoForm(f => ({ ...f, avance_porcentaje: Math.min(100, num) }));
-                    }
-                  }}
-                  className={cn(
-                    "w-16 text-center text-lg font-black rounded-md px-1 py-0.5 focus:outline-none focus:ring-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors",
-                    seguimientoForm.avance_porcentaje >= 80 ? 'text-green-600 focus:ring-green-500' :
-                    seguimientoForm.avance_porcentaje >= 50 ? 'text-yellow-500 focus:ring-yellow-500' : 'text-red-500 focus:ring-red-500'
-                  )}
-                />
-                <span className="text-lg font-bold text-gray-500">%</span>
-              </div>
-            </div>
-            <input
-              type="range" min={0} max={100} step={1}
-              value={seguimientoForm.avance_porcentaje}
-              onChange={e => setSeguimientoForm(f => ({ ...f, avance_porcentaje: parseInt(e.target.value) }))}
-              className="w-full accent-unt-primary h-2 cursor-pointer" />
-            <div className="flex justify-between text-[10px] text-gray-400">
-              <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-            </div>
-            {/* Barra de vista previa */}
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-              <div
-                className={cn(
-                  'h-2.5 rounded-full transition-all duration-300',
-                  seguimientoForm.avance_porcentaje >= 80 ? 'bg-green-500' :
-                  seguimientoForm.avance_porcentaje >= 50 ? 'bg-yellow-400' : 'bg-red-500'
-                )}
-                style={{ width: `${seguimientoForm.avance_porcentaje}%` }}
-              />
-            </div>
-          </div>
-          <Textarea label="Observaciones" placeholder="Describa el avance o novedades del periodo..." value={seguimientoForm.observaciones} onChange={e => setSeguimientoForm(f => ({ ...f, observaciones: e.target.value }))} />
+          <Select
+            label="Hito de Avance*"
+            value={seguimientoForm.avance_porcentaje}
+            onChange={e => setSeguimientoForm(f => ({ ...f, avance_porcentaje: parseInt(e.target.value) }))}
+          >
+            <option value="25">En implementación (25%)</option>
+            <option value="50">Implementada (50%)</option>
+            <option value="75">Verificada (75%)</option>
+            <option value="100">Cerrada (100%)</option>
+          </Select>
+          <Textarea label="Observaciones" value={seguimientoForm.observaciones} onChange={e => setSeguimientoForm(f => ({ ...f, observaciones: e.target.value }))} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowSeguimiento(false)}>Cancelar</Button>
             <Button size="sm" onClick={() => seguimientoMut.mutate(seguimientoForm)} loading={seguimientoMut.isPending}>Guardar</Button>

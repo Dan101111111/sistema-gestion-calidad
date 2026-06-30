@@ -198,7 +198,7 @@ export default function ProcesosPage() {
 
   // Reordenar actividades con botones subir / bajar
   const handleMoveActivity = (idx: number, direction: 'up' | 'down') => {
-    if (!procesoDetalle?.actividades) return;
+    if (!procesoDetalle?.actividades || !Array.isArray(procesoDetalle.actividades)) return;
     const list = [...procesoDetalle.actividades];
     const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (targetIdx < 0 || targetIdx >= list.length) return;
@@ -215,21 +215,22 @@ export default function ProcesosPage() {
 
   // Filtrado de macroprocesos por barra de búsqueda
   const filterMacros = (macrosList: any[]) => {
+    if (!Array.isArray(macrosList)) return [];
     if (!searchTerm) return macrosList;
     return macrosList.map((macro: any) => {
-      const procesosFiltrados = (macro.procesos || []).filter((p: any) =>
+      const procesosFiltrados = (Array.isArray(macro?.procesos) ? macro.procesos : []).filter((p: any) =>
         p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.codigo.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      if (procesosFiltrados.length > 0 || macro.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || macro.codigo.toLowerCase().includes(searchTerm.toLowerCase())) {
+      if (procesosFiltrados.length > 0 || macro?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) || macro?.codigo?.toLowerCase().includes(searchTerm.toLowerCase())) {
         return { ...macro, procesos: procesosFiltrados };
       }
       return null;
     }).filter(Boolean);
   };
 
-  const macros = filterMacros(macrosData || []);
-  const usuarios = usuariosData || [];
+  const macros = filterMacros(Array.isArray(macrosData) ? macrosData : []);
+  const usuarios = Array.isArray(usuariosData) ? usuariosData : [];
 
   return (
     <AppLayout title="Mapa de Procesos">
@@ -269,7 +270,7 @@ export default function ProcesosPage() {
                   <SkeletonCard />
                   <SkeletonCard />
                 </div>
-              ) : macros.length === 0 ? (
+              ) : !Array.isArray(macros) || macros.length === 0 ? (
                 <EmptyState message="No se encontraron macroprocesos" description="Prueba con otros términos de búsqueda." />
               ) : (
                 macros.map((macro: any) => {
@@ -323,7 +324,7 @@ export default function ProcesosPage() {
                       {/* Procesos asociados */}
                       {isExpanded && (
                         <div className="border-t border-gray-100 dark:border-gray-800 bg-white/20 dark:bg-gray-950/20 divide-y divide-gray-100 dark:divide-gray-800">
-                          {(macro.procesos || []).length === 0 ? (
+                          {!Array.isArray(macro.procesos) || macro.procesos.length === 0 ? (
                             <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-2">Sin procesos en este bloque</p>
                           ) : (
                             macro.procesos.map((proc: any) => (
@@ -499,7 +500,7 @@ export default function ProcesosPage() {
                     )}
                   </CardHeader>
                   <CardContent className="py-4 space-y-4">
-                    {!procesoDetalle?.actividades || procesoDetalle.actividades.length === 0 ? (
+                    {!Array.isArray(procesoDetalle?.actividades) || procesoDetalle.actividades.length === 0 ? (
                       <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
                         No hay actividades asignadas a este proceso. Comience agregando una.
                       </p>
@@ -606,7 +607,7 @@ export default function ProcesosPage() {
                       <CardTitle className="text-xs uppercase tracking-wider text-gray-400 font-bold">Documentos Asociados</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2 max-h-[220px] overflow-y-auto">
-                      {!procesoDetalle?.documentos || procesoDetalle.documentos.length === 0 ? (
+                      {!Array.isArray(procesoDetalle?.documentos) || procesoDetalle.documentos.length === 0 ? (
                         <p className="text-[11px] text-gray-400 text-center py-4">Sin documentos vinculados</p>
                       ) : (
                         procesoDetalle.documentos.map((d: any) => (
@@ -626,7 +627,7 @@ export default function ProcesosPage() {
                       <CardTitle className="text-xs uppercase tracking-wider text-gray-400 font-bold">Riesgos Identificados</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2 max-h-[220px] overflow-y-auto">
-                      {!procesoDetalle?.riesgos || procesoDetalle.riesgos.length === 0 ? (
+                      {!Array.isArray(procesoDetalle?.riesgos) || procesoDetalle.riesgos.length === 0 ? (
                         <p className="text-[11px] text-gray-400 text-center py-4">Sin riesgos vinculados</p>
                       ) : (
                         procesoDetalle.riesgos.map((r: any) => (
@@ -646,7 +647,7 @@ export default function ProcesosPage() {
                       <CardTitle className="text-xs uppercase tracking-wider text-gray-400 font-bold">Indicadores de Gestión</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2 max-h-[220px] overflow-y-auto">
-                      {!procesoDetalle?.indicadores || procesoDetalle.indicadores.length === 0 ? (
+                      {!Array.isArray(procesoDetalle?.indicadores) || procesoDetalle.indicadores.length === 0 ? (
                         <p className="text-[11px] text-gray-400 text-center py-4">Sin indicadores vinculados</p>
                       ) : (
                         procesoDetalle.indicadores.map((i: any) => (
